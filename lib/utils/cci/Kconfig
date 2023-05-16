@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: BSD-2-Clause
+
+menuconfig CCI
+	bool "CCI BUS driver support"
+	default n
+
+if CCI
+
+config CCI_550
+	bool "CCI 550 driver"
+	default n
+
+endif
