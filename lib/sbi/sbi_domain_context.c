@@ -157,6 +157,26 @@ static void switch_to_next_domain_context(struct hart_context *ctx,
 	}
 }
 
+/**
+ * Set domain entry point
+ * @param dom pointer to domain
+ * @param entry_point new entry point of domain
+ *
+ * @return 0 on success and negative error code on failure
+ */
+int sbi_domain_context_set_mepc(struct sbi_domain *dom, unsigned long entry_point)
+{
+	struct hart_context *dom_ctx = hart_context_get(dom, current_hartindex());
+
+	/* Validate the domain context existence */
+	if (!dom_ctx)
+		return SBI_EINVAL;
+
+	dom_ctx->trap_ctx.regs.mepc = entry_point - 4;
+
+	return 0;
+}
+
 int sbi_domain_context_enter(struct sbi_domain *dom)
 {
 	struct hart_context *ctx = hart_context_thishart_get();
