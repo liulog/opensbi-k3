@@ -516,8 +516,8 @@ compile_gen_dep = $(CMD_PREFIX)mkdir -p `dirname $(1)`; \
 	     echo " GEN-DEP   $(subst $(build_dir)/,,$(1))"; \
 	     echo "$(1:.dep=$(2)): $(3)" >> $(1)
 compile_itb = \
-             $(CMD_PREFIX)echo " ITB       $(subst $(build_dir)/,,$(1))"; \
-             $(MKIMAGE) -f $(2) -r $(1)
+	     $(CMD_PREFIX)echo " ITB       $(subst $(build_dir)/,,$(1))"; \
+	     $(MKIMAGE) -f $(2) $(itb_build_key_para) -r $(1)
 
 targets-y  = $(build_dir)/lib/libsbi.a
 ifdef PLATFORM

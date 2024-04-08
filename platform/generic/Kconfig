@@ -73,6 +73,23 @@ config PLATFORM_SPACEMIT_K3
        default n
 
 
+if PLATFORM_SPACEMIT_K3
+	config PLATFORM_SPACEMIT_K3_FPGA
+		bool "Spacemit K3 board fpag"
+		default n
+
+	config FIT_SIGNATURE
+		bool "Enable signature build for FIT Images"
+		default n
+		help
+			This option enables build signature for FIT Images,
+			using a hash signed and verified using RSA.
+
+			WARNING: When relying on signed FIT images with a required signature
+			check the legacy image format is disabled by default, so that
+			unsigned images cannot be loaded.
+endif
+
 source "$(OPENSBI_SRC_DIR)/platform/generic/andes/Kconfig"
 source "$(OPENSBI_SRC_DIR)/platform/generic/thead/Kconfig"
 
