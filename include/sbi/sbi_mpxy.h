@@ -42,6 +42,8 @@ enum sbi_mpxy_attr_id {
  */
 enum sbi_mpxy_msgproto_id {
 	SBI_MPXY_MSGPROTO_RPMI_ID = 0x00000000,
+	SBI_MPXY_MSGPROTO_STMM_ID = 0x00000001,
+	SBI_MPXY_MSGPROTO_TEE_ID  = 0x00000002, /* riscv,sbi-mpxy-channel-id */
 	SBI_MPXY_MSGPROTO_MAX_IDX,
 	/** Vendor specific message protocol IDs */
 	SBI_MPXY_MSGPROTO_VENDOR_START	= 0x80000000,

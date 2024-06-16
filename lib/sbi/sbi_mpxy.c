@@ -11,6 +11,7 @@
 #include <sbi/sbi_domain.h>
 #include <sbi/sbi_error.h>
 #include <sbi/sbi_hart.h>
+#include <sbi/sbi_heap.h>
 #include <sbi/sbi_platform.h>
 #include <sbi/sbi_mpxy.h>
 #include <sbi/sbi_scratch.h>
@@ -305,16 +306,13 @@ int sbi_mpxy_set_shmem(unsigned long shmem_phys_lo,
 
 int sbi_mpxy_get_channel_ids(u32 start_index)
 {
-	struct mpxy_state *ms = sbi_scratch_thishart_offset_ptr(mpxy_state_offset);
+	struct hart_mpxy_state *ms = hart_mpxy_state_get(sbi_domain_thishart_ptr(),
+							 current_hartindex());
 	u32 remaining, returned, max_channelids;
 	u32 node_index = 0, node_ret = 0;
 	struct sbi_mpxy_channel *channel;
 	u32 channels_count = 0;
 	u32 *shmem_base;
-
-	/* Check if the shared memory is being setup or not. */
-	struct hart_mpxy_state *ms = hart_mpxy_state_get(sbi_domain_thishart_ptr(),
-							 current_hartindex());
 
 	if (!mpxy_shmem_enabled(ms))
 		return SBI_ERR_NO_SHMEM;

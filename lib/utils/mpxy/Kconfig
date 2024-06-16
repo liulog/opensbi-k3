@@ -40,4 +40,8 @@ config FDT_MPXY_RPMI_SYSMSI
 
 endif
 
+config FDT_MPXY_OPTEED
+	bool "FDT MPXY OP-TEE secure payload dispatcher (SPD) driver"
+	default n
+
 endmenu
