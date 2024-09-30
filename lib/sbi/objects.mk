@@ -69,6 +69,7 @@ libsbi-objs-y += sbi_bitops.o
 libsbi-objs-y += sbi_console.o
 libsbi-objs-y += sbi_domain_context.o
 libsbi-objs-y += sbi_domain_data.o
+libsbi-objs-y += sbi_domain_mpxy_state.o
 libsbi-objs-y += sbi_domain.o
 libsbi-objs-y += sbi_double_trap.o
 libsbi-objs-y += sbi_emulate_csr.o

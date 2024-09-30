@@ -785,11 +785,16 @@ int sbi_domain_init(struct sbi_scratch *scratch, u32 cold_hartid)
 	if (rc)
 		goto fail_free_domain_hart_ptr_offset;
 
+	/* Initialize domain mpxy state support */
+	rc = sbi_domain_mpxy_state_init();
+	if (rc)
+		goto fail_deinit_context;
+
 	root_memregs = sbi_calloc(sizeof(*root_memregs), ROOT_REGION_MAX + 1);
 	if (!root_memregs) {
 		sbi_printf("%s: no memory for root regions\n", __func__);
 		rc = SBI_ENOMEM;
-		goto fail_deinit_context;
+		goto fail_deinit_mpxy_state;
 	}
 	root.regions = root_memregs;
 
@@ -854,6 +859,8 @@ fail_free_root_hmask:
 	sbi_free(root_hmask);
 fail_free_root_memregs:
 	sbi_free(root_memregs);
+fail_deinit_mpxy_state:
+	sbi_domain_mpxy_state_deinit();
 fail_deinit_context:
 	sbi_domain_context_deinit();
 fail_free_domain_hart_ptr_offset:

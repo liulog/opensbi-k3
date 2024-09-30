@@ -22,9 +22,6 @@
 /** Shared memory size across all harts */
 static unsigned long mpxy_shmem_size = PAGE_SIZE;
 
-/** Offset of pointer to MPXY state in scratch space */
-static unsigned long mpxy_state_offset;
-
 /** List of MPXY proxy channels */
 static SBI_LIST_HEAD(mpxy_channel_list);
 
@@ -74,30 +71,15 @@ static SBI_LIST_HEAD(mpxy_channel_list);
 #error "Undefined XLEN"
 #endif
 
-/** Per hart shared memory */
-struct mpxy_shmem {
-	unsigned long shmem_addr_lo;
-	unsigned long shmem_addr_hi;
-};
-
-struct mpxy_state {
-	/* MSI support in MPXY */
-	bool msi_avail;
-	/* SSE support in MPXY */
-	bool sse_avail;
-	/* MPXY Shared memory details */
-	struct mpxy_shmem shmem;
-};
-
 /** Disable hart shared memory */
-static inline void sbi_mpxy_shmem_disable(struct mpxy_state *ms)
+static inline void sbi_mpxy_shmem_disable(struct hart_mpxy_state *ms)
 {
 	ms->shmem.shmem_addr_lo = INVALID_ADDR;
 	ms->shmem.shmem_addr_hi = INVALID_ADDR;
 }
 
 /** Check if shared memory is already setup on hart */
-static inline bool mpxy_shmem_enabled(struct mpxy_state *ms)
+static inline bool mpxy_shmem_enabled(struct hart_mpxy_state *ms)
 {
 	return (ms->shmem.shmem_addr_lo == INVALID_ADDR
 		&& ms->shmem.shmem_addr_hi == INVALID_ADDR) ?
@@ -105,7 +87,7 @@ static inline bool mpxy_shmem_enabled(struct mpxy_state *ms)
 }
 
 /** Get hart shared memory base address */
-static inline void *hart_shmem_base(struct mpxy_state *ms)
+static inline void *hart_shmem_base(struct hart_mpxy_state *ms)
 {
 	return (void *)(unsigned long)SHMEM_PHYS_ADDR(ms->shmem.shmem_addr_hi,
 						ms->shmem.shmem_addr_lo);
@@ -171,8 +153,9 @@ bool sbi_mpxy_channel_available(void)
 
 static void mpxy_std_attrs_init(struct sbi_mpxy_channel *channel)
 {
-	struct mpxy_state *ms = sbi_scratch_thishart_offset_ptr(mpxy_state_offset);
 	u32 capability = 0;
+	struct hart_mpxy_state *ms = hart_mpxy_state_get(sbi_domain_thishart_ptr(),
+							 current_hartindex());
 
 	/* Reset values */
 	channel->attrs.msi_control = 0;
@@ -242,17 +225,13 @@ int sbi_mpxy_register_channel(struct sbi_mpxy_channel *channel)
 
 int sbi_mpxy_init(struct sbi_scratch *scratch)
 {
-	struct mpxy_state *ms;
-
-	mpxy_state_offset = sbi_scratch_alloc_type_offset(struct mpxy_state);
-	if (!mpxy_state_offset)
-		return SBI_ENOMEM;
-
-	/**
-	 * TODO: Proper support for checking msi support from platform.
-	 * Currently disable msi and sse and use polling
+	/*
+	 * TODO: Proper support for checking msi support
+	 * from platform. Currently disable msi and sse
+	 * and use polling
 	 */
-	ms = sbi_scratch_thishart_offset_ptr(mpxy_state_offset);
+	struct hart_mpxy_state *ms = hart_mpxy_state_get(sbi_domain_thishart_ptr(),
+								current_hartindex());
 	ms->msi_avail = false;
 	ms->sse_avail = false;
 
@@ -270,7 +249,8 @@ int sbi_mpxy_set_shmem(unsigned long shmem_phys_lo,
 		       unsigned long shmem_phys_hi,
 		       unsigned long flags)
 {
-	struct mpxy_state *ms = sbi_scratch_thishart_offset_ptr(mpxy_state_offset);
+	struct hart_mpxy_state *ms = hart_mpxy_state_get(sbi_domain_thishart_ptr(),
+							 current_hartindex());
 	unsigned long *ret_buf;
 
 	/** Disable shared memory if both hi and lo have all bit 1s */
@@ -319,6 +299,10 @@ int sbi_mpxy_get_channel_ids(u32 start_index)
 	u32 channels_count = 0;
 	u32 *shmem_base;
 
+	/* Check if the shared memory is being setup or not. */
+	struct hart_mpxy_state *ms = hart_mpxy_state_get(sbi_domain_thishart_ptr(),
+							 current_hartindex());
+
 	if (!mpxy_shmem_enabled(ms))
 		return SBI_ERR_NO_SHMEM;
 
@@ -363,7 +347,8 @@ int sbi_mpxy_get_channel_ids(u32 start_index)
 
 int sbi_mpxy_read_attrs(u32 channel_id, u32 base_attr_id, u32 attr_count)
 {
-	struct mpxy_state *ms = sbi_scratch_thishart_offset_ptr(mpxy_state_offset);
+	struct hart_mpxy_state *ms = hart_mpxy_state_get(sbi_domain_thishart_ptr(),
+							 current_hartindex());
 	int ret = SBI_SUCCESS;
 	u32 *attr_ptr, end_id;
 	void *shmem_base;
@@ -479,7 +464,9 @@ static int mpxy_check_write_std_attr(struct sbi_mpxy_channel *channel,
 static void mpxy_write_std_attr(struct sbi_mpxy_channel *channel, u32 attr_id,
 			        u32 attr_val)
 {
-	struct mpxy_state *ms = sbi_scratch_thishart_offset_ptr(mpxy_state_offset);
+	struct hart_mpxy_state *ms = hart_mpxy_state_get(sbi_domain_thishart_ptr(),
+							 current_hartindex());
+
 	struct sbi_mpxy_channel_attrs *attrs = &channel->attrs;
 
 	switch(attr_id) {
@@ -513,7 +500,8 @@ static void mpxy_write_std_attr(struct sbi_mpxy_channel *channel, u32 attr_id,
 
 int sbi_mpxy_write_attrs(u32 channel_id, u32 base_attr_id, u32 attr_count)
 {
-	struct mpxy_state *ms = sbi_scratch_thishart_offset_ptr(mpxy_state_offset);
+	struct hart_mpxy_state *ms = hart_mpxy_state_get(sbi_domain_thishart_ptr(),
+							 current_hartindex());
 	u32 *mem_ptr, attr_id, end_id, attr_val;
 	struct sbi_mpxy_channel *channel;
 	int ret, mem_idx;
@@ -603,7 +591,8 @@ int sbi_mpxy_send_message(u32 channel_id, u8 msg_id,
 			  unsigned long msg_data_len,
 			  unsigned long *resp_data_len)
 {
-	struct mpxy_state *ms = sbi_scratch_thishart_offset_ptr(mpxy_state_offset);
+	struct hart_mpxy_state *ms = hart_mpxy_state_get(sbi_domain_thishart_ptr(),
+							 current_hartindex());
 	struct sbi_mpxy_channel *channel;
 	void *shmem_base, *resp_buf;
 	u32 resp_bufsize;
@@ -661,7 +650,8 @@ int sbi_mpxy_send_message(u32 channel_id, u8 msg_id,
 
 int sbi_mpxy_get_notification_events(u32 channel_id, unsigned long *events_len)
 {
-	struct mpxy_state *ms = sbi_scratch_thishart_offset_ptr(mpxy_state_offset);
+	struct hart_mpxy_state *ms = hart_mpxy_state_get(sbi_domain_thishart_ptr(),
+							 current_hartindex());
 	struct sbi_mpxy_channel *channel;
 	void *eventsbuf, *shmem_base;
 	int ret;
