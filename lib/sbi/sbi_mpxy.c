@@ -225,17 +225,30 @@ int sbi_mpxy_register_channel(struct sbi_mpxy_channel *channel)
 
 int sbi_mpxy_init(struct sbi_scratch *scratch)
 {
-	/*
-	 * TODO: Proper support for checking msi support
-	 * from platform. Currently disable msi and sse
-	 * and use polling
-	 */
-	struct hart_mpxy_state *ms = hart_mpxy_state_get(sbi_domain_thishart_ptr(),
-								current_hartindex());
-	ms->msi_avail = false;
-	ms->sse_avail = false;
+	struct hart_mpxy_state *ms;
+	struct sbi_domain *dom;
+	u32 idx;
 
-	sbi_mpxy_shmem_disable(ms);
+	/* Loop through each domain to configure its mpxy state */
+	sbi_domain_for_each(dom) {
+		sbi_hartmask_for_each_hartindex(idx, dom->possible_harts) {
+			ms = sbi_zalloc(sizeof(*ms));
+			if (!ms)
+				return SBI_ENOMEM;
+
+			/*
+			 * TODO: Proper support for checking msi support
+			 * from platform. Currently disable msi and sse
+			 * and use polling
+			 */
+			ms->msi_avail = false;
+			ms->sse_avail = false;
+
+			sbi_mpxy_shmem_disable(ms);
+
+			hart_mpxy_state_set(dom, idx, ms);
+		}
+	}
 
 	return sbi_platform_mpxy_init(sbi_platform_ptr(scratch));
 }
