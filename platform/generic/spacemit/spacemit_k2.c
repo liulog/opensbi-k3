@@ -22,8 +22,6 @@
 
 #include <spacemit/spacemit_config.h>
 
-#define PLATFORM_MAX_CPUS_PER_CLUSTER 4
-
 #define SYSREG_REG(offset)	(0x10012000 + (offset))
 
 #define SYS_CPU_RST		SYSREG_REG(0x10)
