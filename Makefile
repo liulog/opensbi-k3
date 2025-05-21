@@ -373,7 +373,7 @@ endif
 ifeq ($(CC_SUPPORT_STRICT_ALIGN),y)
 CFLAGS		+=	-mstrict-align
 endif
-CFLAGS		+=	-mabi=$(PLATFORM_RISCV_ABI) -march=$(PLATFORM_RISCV_ISA)
+CFLAGS		+=	-mabi=$(PLATFORM_RISCV_ABI) -march=$(PLATFORM_RISCV_ISA)_zicbom
 CFLAGS		+=	-mcmodel=$(PLATFORM_RISCV_CODE_MODEL)
 CFLAGS		+=	$(RELAX_FLAG)
 CFLAGS		+=	$(GENFLAGS)
@@ -395,7 +395,7 @@ endif
 ifeq ($(CC_SUPPORT_STRICT_ALIGN),y)
 ASFLAGS		+=	-mstrict-align
 endif
-ASFLAGS		+=	-mabi=$(PLATFORM_RISCV_ABI) -march=$(PLATFORM_RISCV_ISA)
+ASFLAGS		+=	-mabi=$(PLATFORM_RISCV_ABI) -march=$(PLATFORM_RISCV_ISA)_zicbom
 ASFLAGS		+=	-mcmodel=$(PLATFORM_RISCV_CODE_MODEL)
 ASFLAGS		+=	$(RELAX_FLAG)
 ifneq ($(CC_IS_CLANG),y)
