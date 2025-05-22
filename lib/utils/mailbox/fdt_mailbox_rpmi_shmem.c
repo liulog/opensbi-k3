@@ -22,6 +22,7 @@
 #include <sbi_utils/mailbox/mailbox.h>
 #include <sbi_utils/mailbox/fdt_mailbox.h>
 #include <sbi_utils/mailbox/rpmi_mailbox.h>
+#include <sbi_utils/cache/cache.h>
 
 /** Minimum Base group version required */
 #define RPMI_BASE_VERSION_MIN		RPMI_VERSION(1, 0)
@@ -181,6 +182,10 @@ static int __smq_rx(struct smq_queue_ctx *qctx, u32 slot_size,
 	if ((sizeof(u32) * args->rx_endian_words) > xfer->rx_len)
 		return SBI_EINVAL;
 
+	/* invalidate first to slot size : header */
+	__DCACHE_IPA((uintptr_t)qctx->headptr);
+	__DCACHE_IPA((uintptr_t)qctx->tailptr);
+
 	/* There should be some message in the queue */
 	if (__smq_queue_empty(qctx))
 		return SBI_ENOENT;
@@ -199,6 +204,9 @@ static int __smq_rx(struct smq_queue_ctx *qctx, u32 slot_size,
 	pos = headidx;
 	while (pos != tailidx) {
 		src = (void *)qctx->buffer + (pos * slot_size);
+
+		csi_dcache_invalid_range((uintptr_t)src, slot_size);
+
 		if ((no_rx_token && GET_MESSAGE_ID(src) == msgidn) ||
 		    (GET_TOKEN(src) == (xfer->seq & RPMI_MSG_TOKEN_MASK)))
 			break;
@@ -216,6 +224,10 @@ static int __smq_rx(struct smq_queue_ctx *qctx, u32 slot_size,
 			((u32 *)dst)[i] = ((u32 *)src)[i];
 			((u32 *)src)[i] = tmp;
 		}
+
+		csi_dcache_clean_range((uintptr_t)src, slot_size);
+		csi_dcache_clean_range((uintptr_t)dst, slot_size);
+
 	}
 
 	/* Update rx_token if not available */
@@ -240,6 +252,8 @@ static int __smq_rx(struct smq_queue_ctx *qctx, u32 slot_size,
 
 	/* Update the head/read index */
 	*qctx->headptr = cpu_to_le32(headidx + 1) % qctx->num_slots;
+	/* clean & invalidate the tailptr */
+	__DCACHE_CIPA((uintptr_t)qctx->headptr);
 
 	/* Make sure updates to head are immediately visible to PuC */
 	smp_wmb();
@@ -261,6 +275,10 @@ static int __smq_tx(struct smq_queue_ctx *qctx, struct rpmi_mb_regs *mb_regs,
 		return SBI_EINVAL;
 	if ((sizeof(u32) * args->tx_endian_words) > xfer->tx_len)
 		return SBI_EINVAL;
+
+	/* invalidate first to slot size : header */
+	__DCACHE_IPA((uintptr_t)qctx->headptr);
+	__DCACHE_IPA((uintptr_t)qctx->tailptr);
 
 	/* There should be some room in the queue */
 	if (__smq_queue_full(qctx))
@@ -292,11 +310,19 @@ static int __smq_tx(struct smq_queue_ctx *qctx, struct rpmi_mb_regs *mb_regs,
 			xfer->tx_len - (sizeof(u32) * args->tx_endian_words));
 	}
 
+	csi_dcache_clean_invalid_range((uintptr_t)((char *)qctx->buffer +
+		(tailidx * slot_size)),
+			slot_size);
+
 	/* Make sure queue chanages are visible to PuC before updating tail */
 	smp_wmb();
 
 	/* Update the tail/write index */
 	*qctx->tailptr = cpu_to_le32(tailidx + 1) % qctx->num_slots;
+
+	/* clean & invalidate the tailptr */
+	__DCACHE_CIPA((uintptr_t)qctx->tailptr);
+
 
 	/* Ring the RPMI doorbell if present */
 	if (mb_regs)
