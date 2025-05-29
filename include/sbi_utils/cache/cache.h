@@ -112,4 +112,30 @@ static inline void csi_dcache_invalid_range (uintptr_t addr, unsigned int dsize)
     asm volatile("fence.i");
 }
 
+static inline void csi_enable_cache(void)
+{
+	csr_set(CSR_MSETUP, 0x10073);
+}
+
+static inline void csi_disable_data_preftch(void)
+{
+	csr_clear(CSR_MSETUP, 32);
+}
+
+static inline void csi_flush_dcache_all(void)
+{
+	asm volatile ("csrwi 0x7c2, 0x1");
+}
+
+static inline void csi_disable_cache(void)
+{
+        csr_clear(CSR_MSETUP, 3);
+}
+
+static inline void csi_invalidate_dcache_all(void)
+{
+	asm volatile ("csrwi 0x7c2, 0x2");
+}
+
+
 #endif

@@ -311,6 +311,18 @@ _start_warm:
 	/* Disable all interrupts */
 	csrw	CSR_MIE, zero
 
+	/*
+	 *  enable dcache
+	 *  the reason why dcache is enabled here is because
+	 *  1. some instructions like amo depends on dcache
+	 *  2. if dcache is turned on in C code, the data read
+	 *	from the stack may be incorrect
+	 */
+	lui	a5, 0x10
+	addi	a5, a5, 115 # 10073
+	csrs	msetup, a5
+	fence	iorw, iorw
+ 
 	/* Find HART count and HART stack size */
 	lla	a4, platform
 #if __riscv_xlen > 32
