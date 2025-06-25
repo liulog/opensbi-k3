@@ -14,6 +14,7 @@
 #include <sbi/sbi_trap.h>
 #include <sbi/sbi_version.h>
 #include <sbi/riscv_asm.h>
+#include <sbi_utils/cache/cache.h>
 
 static int sbi_ecall_base_probe(unsigned long extid, unsigned long *out_val)
 {
@@ -64,6 +65,11 @@ static int sbi_ecall_base_handler(unsigned long extid, unsigned long funcid,
 	case SBI_EXT_BASE_PROBE_EXT:
 		ret = sbi_ecall_base_probe(regs->a0, &out->value);
 		break;
+#if defined(CONFIG_PLATFORM_SPACEMIT_K2)
+        case SBI_EXT_BASE_FLUSH_CACHE_ALL:
+                csi_flush_dcache_all();
+                break;
+#endif
 	default:
 		ret = SBI_ENOTSUPP;
 	}
