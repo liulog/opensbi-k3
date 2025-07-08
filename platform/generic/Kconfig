@@ -68,8 +68,8 @@ config PLATFORM_THEAD
 	select THEAD_C9XX_PMU
 	default n
 
-config PLATFORM_SPACEMIT_K2
-       bool "Spacemit K2 support"
+config PLATFORM_SPACEMIT_K3
+       bool "Spacemit K3 support"
        default n
 
 

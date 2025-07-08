@@ -133,7 +133,7 @@ int uart8250_init(unsigned long base, u32 in_freq, u32 baudrate, u32 reg_shift,
 	/* Set scratchpad */
 	set_reg(UART_SCR_OFFSET, 0x00);
 
-#if defined(CONFIG_PLATFORM_SPACEMIT_K2) || defined(CONFIG_PLATFORM_SPACEMIT_K1X)
+#if defined(CONFIG_PLATFORM_SPACEMIT_K3) || defined(CONFIG_PLATFORM_SPACEMIT_K1X)
        /* enable uart. */
        set_reg(UART_IER_OFFSET, 0x40);
 #endif

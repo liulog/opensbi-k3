@@ -20,11 +20,11 @@
 #include <sbi/sbi_timer.h>
 #include <sbi_utils/fdt/fdt_helper.h>
 #include <spacemit/spacemit_config.h>
-#include <spacemit/k2/k2_pmp.h>
+#include <spacemit/k3/k3_pmp.h>
 #include <sbi_utils/cache/cache.h>
 #include <sbi_utils/cci/cci.h>
 
-void spacemit_k2_pmp_init(void)
+void spacemit_k3_pmp_init(void)
 {
 	int i, region_num;
 	PmpRegion* pRegion;
@@ -446,12 +446,12 @@ static void spacemit_devote_pwrdown_core(uint32_t hartid)
 	}
 }
 
-static int spacemit_k2_hart_start(uint32_t hartid, unsigned long saddr)
+static int spacemit_k3_hart_start(uint32_t hartid, unsigned long saddr)
 {
 	return spacemit_wakeup_core(hartid);
 }
 
-static int spacemit_k2_hart_stop(void)
+static int spacemit_k3_hart_stop(void)
 {
 	/* disable local timer */
 	csr_write(CSR_STIMECMP, 0xffffffffffffffff);
@@ -479,26 +479,26 @@ static int spacemit_k2_hart_stop(void)
 	return 0;
 }
 
-static int spacemit_k2_hart_suspend(u32 suspend_type, ulong mmode_resume_addr)
+static int spacemit_k3_hart_suspend(u32 suspend_type, ulong mmode_resume_addr)
 {
 	return 0;
 }
 
-static void spacemit_k2_hart_resume(void)
+static void spacemit_k3_hart_resume(void)
 {
 
 }
 
-static const struct sbi_hsm_device spacemit_k2_hsm_ops = {
-	.name		= "spacemit_k2-hsm",
-	.hart_start	= spacemit_k2_hart_start,
-	.hart_stop	= spacemit_k2_hart_stop,
-	.hart_suspend	= spacemit_k2_hart_suspend,
-	.hart_resume	= spacemit_k2_hart_resume,
+static const struct sbi_hsm_device spacemit_k3_hsm_ops = {
+	.name		= "spacemit_k3-hsm",
+	.hart_start	= spacemit_k3_hart_start,
+	.hart_stop	= spacemit_k3_hart_stop,
+	.hart_suspend	= spacemit_k3_hart_suspend,
+	.hart_resume	= spacemit_k3_hart_resume,
 };
 
-static const struct fdt_match spacemit_k2_mach[] = {
-	{ .compatible = "spacemit,k2" },
+static const struct fdt_match spacemit_k3_mach[] = {
+	{ .compatible = "spacemit,k3" },
 	{ .compatible = "riscv-spacemit" },
 	{ },
 };
@@ -508,7 +508,7 @@ extern struct sbi_platform platform;
 
 #define CPU_TO_CLUSTER(cpu)    ((cpu) / PLATFORM_MAX_CPUS_PER_CLUSTER)
 
-static int spacemit_k2_early_init(bool cold_boot, const void *fdt, const struct fdt_match *match)
+static int spacemit_k3_early_init(bool cold_boot, const void *fdt, const struct fdt_match *match)
 {
 	int i;
 	unsigned int hartid;
@@ -576,20 +576,20 @@ static int spacemit_k2_early_init(bool cold_boot, const void *fdt, const struct 
 	return 0;
 }
 
-static int spacemit_k2_final_init(bool cold_boot, void *fdt, const struct fdt_match *match)
+static int spacemit_k3_final_init(bool cold_boot, void *fdt, const struct fdt_match *match)
 {
-	if (cold_boot) sbi_hsm_set_device(&spacemit_k2_hsm_ops);
+	if (cold_boot) sbi_hsm_set_device(&spacemit_k3_hsm_ops);
 
 	return 0;
 }
 
-static bool spacemit_k2_cold_boot_allowed(u32 hartid, const struct fdt_match *match)
+static bool spacemit_k3_cold_boot_allowed(u32 hartid, const struct fdt_match *match)
 {
 	/* enable core snoop */
 	csr_set(CSR_ML2SETUP, 1 << (hartid % PLATFORM_MAX_CPUS_PER_CLUSTER));
 
 	/* set the pmp per-core */
-	spacemit_k2_pmp_init();
+	spacemit_k3_pmp_init();
 
 	/* devote early */
 	spacemit_devote_pwrdown_core(hartid);
@@ -601,9 +601,9 @@ static bool spacemit_k2_cold_boot_allowed(u32 hartid, const struct fdt_match *ma
 	return ((hartid == 0) ? true : false);
 }
 
-const struct platform_override spacemit_k2 = {
-	.match_table = spacemit_k2_mach,
-	.early_init = spacemit_k2_early_init,
-	.final_init = spacemit_k2_final_init,
-	.cold_boot_allowed = spacemit_k2_cold_boot_allowed,
+const struct platform_override spacemit_k3 = {
+	.match_table = spacemit_k3_mach,
+	.early_init = spacemit_k3_early_init,
+	.final_init = spacemit_k3_final_init,
+	.cold_boot_allowed = spacemit_k3_cold_boot_allowed,
 };
