@@ -577,7 +577,7 @@ static inline void __set_PMPxCFG(uint64_t idx, uint8_t pmpxcfg)
 
 PmpRegion pmp_setting[] = {
 	// start_addr  end_addr  region_attr  region_enable
-	{ 0x00000000, 0x0003FFFFFF, nRnWnX, 1 },
+	{ 0x00000000, 0x0003FFFFFF, RWnX, 1 },
 	{ 0x04000000, 0x00FFFFFFFF, RWX, 1 },
 	{ 0x100000000, 0x3FFFFFFFFF, RWX, 1 },
 };
