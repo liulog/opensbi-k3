@@ -322,7 +322,28 @@ _start_warm:
 	addi	a5, a5, 115 # 10073
 	csrs	msetup, a5
 	fence	iorw, iorw
- 
+
+#ifdef CONFIG_PLATFORM_SPACEMIT_K3
+	/*
+	 * Enable hypervisor extension for X100.
+	 * Skip this for A100 since A100 doesn't support it.
+	 *
+	 * Hart IDs:
+	 *	X100: 0-7
+	 *	A100: 8-15
+	 */
+	csrr	t0, CSR_MHARTID
+	li	t1, 8
+	bgeu	t0, t1, _skip_enable_h_extension
+	csrr	t2, CSR_MISA
+	li	t3, 0x1
+	slli	t3, t3, ('H' - 'A')
+	or	t2, t2, t3
+	csrw	CSR_MISA, t2
+
+_skip_enable_h_extension:
+#endif
+
 	/* Find HART count and HART stack size */
 	lla	a4, platform
 #if __riscv_xlen > 32
