@@ -23,6 +23,7 @@
 #include <sbi_utils/mailbox/fdt_mailbox.h>
 #include <sbi_utils/mailbox/rpmi_mailbox.h>
 #include <sbi_utils/cache/cache.h>
+#include <spacemit/spacemit_config.h>
 
 /** Minimum Base group version required */
 #define RPMI_BASE_VERSION_MIN		RPMI_VERSION(1, 0)
@@ -686,7 +687,13 @@ static int rpmi_shmem_transport_init(struct rpmi_shmem_mbox_controller *mctl,
 	ret = fdt_get_node_addr_size(fdt, nodeoff, qid, &reg_addr,
 				       &reg_size);
 	if (!ret && !(strncmp(name, "db-reg", strlen("db-reg")))) {
+#ifdef CONFIG_PLATFORM_SPACEMIT_K3
+		mctl->mb_regs = (void *)((unsigned long)reg_addr + MAILBOX_DOORBALL_TRIGGER_OFFSET);
+		/* enable the user1's new irq */
+		writel(1, (void *)(((unsigned long)reg_addr) + MAILBOX_INT_EN_REG_OFFSET));
+#else
 		mctl->mb_regs = (void *)(unsigned long)reg_addr;
+#endif
 		ret = sbi_domain_root_add_memrange(reg_addr, reg_size, reg_size,
 						   (SBI_DOMAIN_MEMREGION_MMIO |
 						    SBI_DOMAIN_MEMREGION_M_READABLE |
