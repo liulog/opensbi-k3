@@ -566,6 +566,8 @@
 #define CSR_PMPADDR62			0x3ee
 #define CSR_PMPADDR63			0x3ef
 
+#define CSR_TCMCFG			0x5DB
+
 /* Machine Counters/Timers */
 #define CSR_MCYCLE			0xb00
 #define CSR_MINSTRET			0xb02
