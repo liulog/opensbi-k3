@@ -215,6 +215,7 @@ enum rpmi_servicegroup_id {
 	RPMI_SRVGRP_CPPC = 0x0006,
 	RPMI_SRVGRP_VOLTAGE = 0x0007,
 	RPMI_SRVGRP_CLOCK = 0x0008,
+	RPMI_SRVGRP_RTC = 0x000E,
 	RPMI_SRVGRP_ID_MAX_COUNT,
 
 	/* Reserved range for service groups */
@@ -782,4 +783,103 @@ struct rpmi_voltage_get_level_resp {
 	s32 voltage_level;
 };
 
+/** RPMI RTC ServiceGroup Service IDs */
+enum rpmi_rtc_service_id {
+	RPMI_RTC_SRV_ENABLE_NOTIFICATION = 0x01,
+	RPMI_RTC_SRV_SET_TIME = 0x02,
+	RPMI_RTC_SRV_GET_TIME = 0x03,
+	RPMI_RTC_SRV_SET_ALARM = 0x04,
+	RPMI_RTC_SRV_GET_ALARM = 0x05,
+	RPMI_RTC_SRV_ALARM_GET_EN = 0x06,
+	RPMI_RTC_SRV_ALARM_SET_EN = 0x07,
+	RPMI_RTC_SRV_QUERY_PENDING = 0x8,
+	RPMI_RTC_SRV_CLR_PENDING = 0x9,
+	RPMI_RTC_SRV_MAX_COUNT,
+};
+
+struct rpmi_rtc_set_time_req {
+	u32 year;
+	u32 mon;
+	u32 date;
+	u32 hour;
+	u32 min;
+	u32 second;
+};
+
+struct rpmi_rtc_set_time_resp {
+	u32 status;
+};
+
+struct rpmi_rtc_get_time_req {
+	u32 dummy;
+};
+
+struct rpmi_rtc_get_time_resp {
+	s32 status;
+	u32 year;
+	u32 mon;
+	u32 date;
+	u32 hour;
+	u32 min;
+	u32 second;
+};
+
+struct rpmi_rtc_set_alarm_req {
+	u32 year;
+	u32 mon;
+	u32 date;
+	u32 hour;
+	u32 min;
+	u32 second;
+};
+
+struct rpmi_rtc_set_alarm_resp {
+	s32 status;
+};
+
+struct rpmi_rtc_get_alarm_req {
+	u32 dummy;
+};
+
+struct rpmi_rtc_get_alarm_resp {
+	s32 status;
+	u32 year;
+	u32 mon;
+	u32 date;
+	u32 hour;
+	u32 min;
+	u32 second;
+};
+
+struct rpmi_rtc_get_alarm_en_req {
+	u32 dummy;
+};
+
+struct rpmi_rtc_get_alarm_en_resp {
+	s32 status;
+};
+
+struct rpmi_rtc_set_alarm_en_req {
+	u32 en;
+};
+
+struct rpmi_rtc_set_alarm_en_resp {
+	s32 status;
+};
+
+struct rpmi_rtc_query_pending_req {
+	u32 dummy;
+};
+
+struct rpmi_rtc_query_pending_resp {
+	s32 status;
+};
+
+struct rpmi_rtc_clear_pending_req {
+	u32 dummy;
+};
+
+struct rpmi_rtc_clear_pending_resp {
+	s32 status;
+};
 #endif /* !__RPMI_MSGPROT_H__ */
