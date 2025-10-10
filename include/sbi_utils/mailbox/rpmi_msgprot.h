@@ -216,6 +216,7 @@ enum rpmi_servicegroup_id {
 	RPMI_SRVGRP_VOLTAGE = 0x0007,
 	RPMI_SRVGRP_CLOCK = 0x0008,
 	RPMI_SRVGRP_RTC = 0x000E,
+	RPMI_SRVGRP_PWRKEY = 0x000F,
 	RPMI_SRVGRP_ID_MAX_COUNT,
 
 	/* Reserved range for service groups */
@@ -880,6 +881,34 @@ struct rpmi_rtc_clear_pending_req {
 };
 
 struct rpmi_rtc_clear_pending_resp {
+	s32 status;
+};
+
+/** RPMI pwrkey service IDs */
+enum rpmi_pwrkey_service_id {
+	RPMI_PWRKEY_SRV_ENABLE_NOTIFICATION = 0x01,
+	RPMI_PWRKEY_SRV_QUERY_PENDING = 0x02,
+	RPMI_PWRKEY_SRV_CLR_PENDING = 0x03,
+	RPMI_PWRKEY_SRV_ID_MAX_COUNT,
+};
+
+struct rpmi_pwrkey_query_pending_req {
+	u32 dummy;
+};
+
+struct rpmi_pwrkey_query_pending_resp {
+#define RPMI_PWRKEY_PRESS_OFFSET	(1 << 0)
+#define RPMI_PWRKEY_RELEASE_OFFSET	(1 << 1)
+	s32 status;
+};
+
+struct rpmi_pwrkey_clear_pending_req {
+#define RPMI_PWRKEY_PRESS_OFFSET	(1 << 0)
+#define RPMI_PWRKEY_RELEASE_OFFSET	(1 << 1)
+	u32 clear;
+};
+
+struct rpmi_pwrkey_clear_pending_resp {
 	s32 status;
 };
 #endif /* !__RPMI_MSGPROT_H__ */
