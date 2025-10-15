@@ -18,6 +18,9 @@ libsbiutils-objs-$(CONFIG_FDT_MPXY_RPMI_CLOCK) += mpxy/fdt_mpxy_rpmi_clock.o
 carray-fdt_mpxy_drivers-$(CONFIG_FDT_MPXY_RPMI_VOLTAGE) += fdt_mpxy_rpmi_voltage
 libsbiutils-objs-$(CONFIG_FDT_MPXY_RPMI_VOLTAGE) += mpxy/fdt_mpxy_rpmi_voltage.o
 
+carray-fdt_mpxy_drivers-$(CONFIG_FDT_MPXY_RPMI_DOMAIN) += fdt_mpxy_rpmi_domain
+libsbiutils-objs-$(CONFIG_FDT_MPXY_RPMI_DOMAIN) += mpxy/fdt_mpxy_rpmi_domain.o
+
 carray-fdt_mpxy_drivers-$(CONFIG_FDT_MPXY_RPMI_RTC) += fdt_mpxy_rpmi_rtc
 libsbiutils-objs-$(CONFIG_FDT_MPXY_RPMI_RTC) += mpxy/fdt_mpxy_rpmi_rtc.o
 

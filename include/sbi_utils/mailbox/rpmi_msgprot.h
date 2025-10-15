@@ -215,6 +215,7 @@ enum rpmi_servicegroup_id {
 	RPMI_SRVGRP_CPPC = 0x0006,
 	RPMI_SRVGRP_VOLTAGE = 0x0007,
 	RPMI_SRVGRP_CLOCK = 0x0008,
+	RPMI_SRVGRP_DOMAIN = 0x0009,
 	RPMI_SRVGRP_RTC = 0x000E,
 	RPMI_SRVGRP_PWRKEY = 0x000F,
 	RPMI_SRVGRP_ID_MAX_COUNT,
@@ -782,6 +783,50 @@ struct rpmi_voltage_get_level_req {
 struct rpmi_voltage_get_level_resp {
 	s32 status;
 	s32 voltage_level;
+};
+
+/** RPMI Device Power ServiceGroup Service IDs */
+enum rpmi_domain_service_id {
+	RPMI_DOMAIN_SRV_ENABLE_NOTIFICATION = 0x01,
+	RPMI_DOMAIN_SRV_GET_NUM_DOMAINS = 0x02,
+	RPMI_DOMAIN_SRV_GET_ATTRIBUTES = 0x03,
+	RPMI_DOMAIN_SRV_SET_STATE = 0x04,
+	RPMI_DOMAIN_SRV_GET_STATE = 0x05,
+	RPMI_DOMAIN_SRV_MAX_COUNT,
+};
+
+struct rpmi_domain_get_num_domains_resp {
+	s32 status;
+	u32 num_domains;
+};
+
+struct rpmi_domain_get_attributes_req {
+	u32 domain_id;
+};
+
+struct rpmi_domain_get_attributes_resp {
+	s32 status;
+	u32 flags;
+	u32 trans_latency;
+	u8 name[16];
+};
+
+struct rpmi_domain_set_state_req {
+	u32 domain_id;
+	u32 state;
+};
+
+struct rpmi_domain_set_state_resp {
+	u32 status;
+};
+
+struct rpmi_domain_get_state_req {
+	u32 domain_id;
+};
+
+struct rpmi_domain_get_state_resp {
+	s32 status;
+	u32 state;
 };
 
 /** RPMI RTC ServiceGroup Service IDs */
