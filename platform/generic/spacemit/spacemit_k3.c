@@ -564,6 +564,12 @@ static int spacemit_k3_early_init(bool cold_boot, const void *fdt, const struct 
 			/* enable the cci */
 			cci_enable_snoop_dvm_reqs(cluster_id);
 		}
+
+		/* deassert dmasys reset for cpus reach all tcm range */
+		writel(1, (unsigned int *)DMASYS_RESET);
+		/* enable dmasys clk for cpus reach all tcm range */
+		writel(1, (unsigned int *)DMASYS_CLK_EN);
+
 	} else {
 		unsigned int current_hartid = current_hartid();
 

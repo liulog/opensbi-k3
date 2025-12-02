@@ -85,6 +85,9 @@
 #define PMU_C2_L2_FLUSH_CTRL		(0xd8440000 + 0x1c4)
 #define PMU_C3_L2_FLUSH_CTRL		(0xd8440000 + 0x1ec)
 
+#define DMASYS_RESET			(0xd8440000 + 0x22c)
+#define DMASYS_CLK_EN			(0xd8440000 + 0x234)
+
 #define PMU_L2_FLUSH_HW_TYPE		(1 << 0)
 #define PMU_L2_FLUSH_HW_EN		(1 << 2)
 
