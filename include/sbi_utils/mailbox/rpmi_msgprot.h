@@ -73,7 +73,7 @@
 #define RPMI_MSG_DATA_SIZE(__slot_size)		((__slot_size) - RPMI_MSG_HDR_SIZE)
 
 /** Minimum slot size in bytes */
-#define RPMI_SLOT_SIZE_MIN			(64)
+#define RPMI_SLOT_SIZE_MIN			(128)
 
 /** Name length of 16 characters */
 #define RPMI_NAME_CHARS_MAX			(16)
