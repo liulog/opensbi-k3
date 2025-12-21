@@ -12,8 +12,8 @@
 			os = "opensbi";
 			arch = "riscv";
 			compression = "none";
-			load = <0x0 0x0>;
-			entry = <0x0 0x0>;
+			load = <0x1 0x0>;
+			entry = <0x1 0x0>;
 			data = /incbin/("./fw_dynamic.bin");
 			hash-1 {
 				algo = "crc32";
