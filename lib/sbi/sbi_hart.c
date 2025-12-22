@@ -363,10 +363,12 @@ static void sbi_hart_smepmp_set(struct sbi_scratch *scratch,
 	if (pmp_log2gran <= reg->order && pmp_addr < pmp_addr_max) {
 		pmp_set(pmp_idx, pmp_flags, reg->base, reg->order);
 	} else {
+#if 0
 		sbi_printf("Can not configure pmp for domain %s because"
 			   " memory region address 0x%lx or size 0x%lx "
 			   "is not in range.\n", dom->name, reg->base,
 			   reg->order);
+#endif
 	}
 }
 
@@ -480,10 +482,12 @@ static int sbi_hart_oldpmp_configure(struct sbi_scratch *scratch,
 		if (pmp_log2gran <= reg->order && pmp_addr < pmp_addr_max) {
 			pmp_set(pmp_idx++, pmp_flags, reg->base, reg->order);
 		} else {
+#if 0
 			sbi_printf("Can not configure pmp for domain %s because"
 				   " memory region address 0x%lx or size 0x%lx "
 				   "is not in range.\n", dom->name, reg->base,
 				   reg->order);
+#endif
 		}
 	}
 
