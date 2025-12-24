@@ -466,9 +466,9 @@ static int spacemit_k3_hart_stop(void)
 	/* flush dcache all */
 	csi_flush_dcache_all();
 	asm volatile ("fence iorw, iorw");
-	/* disable core snoop */
+	/* disable core snoop ,iprf and tprf */
 	unsigned int current_hartid = current_hartid(); 
-	csr_clear(CSR_ML2SETUP, 1 << (current_hartid % PLATFORM_MAX_CPUS_PER_CLUSTER));
+	csr_clear(CSR_ML2SETUP, 1 << (current_hartid % PLATFORM_MAX_CPUS_PER_CLUSTER) | 1 << 16 | 1 << 18);
 	asm volatile ("fence iorw, iorw");
 
 	/* core power-down & cluster may power-down */
@@ -591,8 +591,8 @@ static int spacemit_k3_final_init(bool cold_boot, void *fdt, const struct fdt_ma
 
 static bool spacemit_k3_cold_boot_allowed(u32 hartid, const struct fdt_match *match)
 {
-	/* enable core snoop */
-	csr_set(CSR_ML2SETUP, 1 << (hartid % PLATFORM_MAX_CPUS_PER_CLUSTER));
+	/* enable core snoop ,iprf and tprf*/
+	csr_set(CSR_ML2SETUP, 1 << (hartid % PLATFORM_MAX_CPUS_PER_CLUSTER) | 1 << 16 | 1 << 18);
 
 	/* set the pmp per-core */
 	spacemit_k3_pmp_init();
