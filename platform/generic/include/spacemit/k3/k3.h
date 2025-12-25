@@ -92,7 +92,7 @@
 #define PMU_L2_FLUSH_HW_EN		(1 << 2)
 
 #define CPU_PWR_DOWN_VALUE		(0x3)
-#define CLUSTER_PWR_DOWN_VALUE		(0x2007)
+#define CLUSTER_PWR_DOWN_VALUE		(0x7)
 
 /* this is the max cluster count of this platform */
 #define PLATFORM_CLUSTER_COUNT		(4U)
