@@ -23,6 +23,7 @@
 #include <sbi/sbi_string.h>
 #include <sbi/sbi_trap.h>
 #include <sbi/sbi_hfence.h>
+#include <spacemit/k3/core_common.h>
 
 extern void __sbi_expected_trap(void);
 extern void __sbi_expected_trap_hext(void);
@@ -1090,6 +1091,7 @@ sbi_hart_switch_mode(unsigned long arg0, unsigned long arg1,
 	}
 
 	csr_write(CSR_TCMCFG, 1);
+	csr_set(CSR_MHCR, (1<<0));
 
 	register unsigned long a0 asm("a0") = arg0;
 	register unsigned long a1 asm("a1") = arg1;
