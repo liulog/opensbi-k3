@@ -369,6 +369,8 @@
 #define CSR_SIEH			0x114
 #define CSR_SIPH			0x154
 
+#define TOPEI_ID_SHIFT			16
+
 /* Supervisor stateen CSRs */
 #define CSR_SSTATEEN0			0x10C
 #define CSR_SSTATEEN1			0x10D

@@ -91,6 +91,7 @@
 #define PMU_L2_FLUSH_HW_TYPE		(1 << 0)
 #define PMU_L2_FLUSH_HW_EN		(1 << 2)
 
+#define CPU_MASK_FI_INTTERUPT		((1 << 3) | (1 << 4))
 #define CPU_PWR_DOWN_VALUE		(0x3)
 #define CLUSTER_PWR_DOWN_VALUE		(0x7)
 
@@ -107,5 +108,48 @@
 
 #define MAILBOX_DOORBALL_TRIGGER_OFFSET	0x40
 #define MAILBOX_INT_EN_REG_OFFSET	0x118
+
+#define MAILBOX_DOORBALL_TRIGGER_OFFSET	0x40
+#define MAILBOX_INT_EN_REG_OFFSET	0x118
+
+/***************************imsic config**********************/
+#define MAX_IMSIC_EIE_REGISTERS		64
+#define IMSIC_FIRST_EIE_REG		0xc0
+#define IMSIC_EIDELIVERY		0x70
+#define IMSIC_EITHRESHOLD		0x72
+#define IMSIC_MAX_VGEN			0x8
+
+struct himsic_config {
+	/* h-mode */
+	unsigned long long heidelivery;
+	unsigned long long heithreshold;
+	unsigned long long heie[MAX_IMSIC_EIE_REGISTERS];
+};
+
+struct imsic_config {
+	unsigned int flags;
+	/* m-mode */
+	unsigned long long meidelivery;
+	unsigned long long meithreshold;
+	unsigned long long meie[MAX_IMSIC_EIE_REGISTERS];
+	/* s-mode */
+	unsigned long long seidelivery;
+	unsigned long long seithreshold;
+	unsigned long long seie[MAX_IMSIC_EIE_REGISTERS];
+	/* h-mode */
+	unsigned long long hstatus;
+	unsigned long long hedeleg;
+	unsigned long long hideleg;
+	unsigned long long hie;
+	unsigned long long hcounteren;
+	unsigned long long hgeie;
+	unsigned long long henvcfg;
+	unsigned long long henvcfgh;
+	unsigned long long htval;
+	unsigned long long hgatp;
+	unsigned long long htimedelta;
+	unsigned long long htimedeltah;
+	struct himsic_config hc[IMSIC_MAX_VGEN];
+};
 
 #endif /* __K2_PLATFORM_CONFIG_H__ */

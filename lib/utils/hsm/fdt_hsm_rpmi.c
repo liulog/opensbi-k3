@@ -18,6 +18,7 @@
 #include <sbi_utils/mailbox/fdt_mailbox.h>
 #include <sbi_utils/mailbox/mailbox.h>
 #include <sbi_utils/mailbox/rpmi_mailbox.h>
+#include <spacemit/spacemit_config.h>
 
 #define MAX_HSM_SUPSEND_STATE_NAMELEN		16
 
@@ -84,6 +85,10 @@ static int rpmi_hsm_stop(void)
 	if (rc)
 		return rc;
 
+#ifdef CONFIG_PLATFORM_SPACEMIT_K3
+	__rpmi_shutdown_process();
+#endif
+
 	/* Wait for interrupt */
 	wfi();
 
@@ -92,6 +97,7 @@ static int rpmi_hsm_stop(void)
 	return 0;
 }
 
+#ifndef CONFIG_PLATFORM_SPACEMIT_K3
 static bool is_rpmi_hsm_susp_supported(struct rpmi_hsm_suspend *susp, u32 type)
 {
 	int i;
@@ -102,9 +108,13 @@ static bool is_rpmi_hsm_susp_supported(struct rpmi_hsm_suspend *susp, u32 type)
 
 	return false;
 }
+#endif
 
 static int rpmi_hsm_suspend(u32 type, ulong resume_addr)
 {
+#ifdef CONFIG_PLATFORM_SPACEMIT_K3
+	__rpmi_hsm_suspend(type);
+#else
 	int rc;
 	struct rpmi_hsm_hart_susp_req req;
 	struct rpmi_hsm_hart_susp_resp resp;
@@ -131,15 +141,25 @@ static int rpmi_hsm_suspend(u32 type, ulong resume_addr)
 
 	/* Wait for interrupt */
 	wfi();
-
+#endif
 	return 0;
 }
+
+#ifdef CONFIG_PLATFORM_SPACEMIT_K3
+static void rpmi_hsm_resume(void)
+{
+	__rpmi_hsm_resume();
+}
+#endif
 
 static struct sbi_hsm_device sbi_hsm_rpmi = {
 	.name		= "rpmi-hsm",
 	.hart_start	= rpmi_hsm_start,
 	.hart_stop	= rpmi_hsm_stop,
 	.hart_suspend	= rpmi_hsm_suspend,
+#ifdef CONFIG_PLATFORM_SPACEMIT_K3
+	.hart_resume	= rpmi_hsm_resume,
+#endif
 };
 
 static void rpmi_hsm_do_fixup(struct fdt_general_fixup *f, void *fdt)
