@@ -4,10 +4,10 @@ set -e
 case "$1" in
 configure)
     target=""
-    if grep -q '^spacemit' /sys/firmware/devicetree/base/model || grep -q '^spacemit' /sys/devices/soc0/family; then
+    if grep -q 'Spacemit(R) X100' /proc/cpuinfo; then
         target="spacemit"
     else
-        echo "Neither /sys/firmware/devicetree/base/model nor /sys/devices/soc0/family starts with 'spacemit'."
+        echo "no 'Spacemit(R) X100' found in /proc/cpuinfo."
         echo "This may indicate that you are installing this package in a chroot environment."
         exit 0
     fi
@@ -27,25 +27,33 @@ configure)
     if [ -n $ROOT ]; then
         case $ROOT in
         "/dev/mmcblk0"*)
-            OPENSBI=/dev/mmcblk0p3
-            OPENSBI_SEEK=0
+            OPENSBI_MOUNT="/dev/mmcblk0p1"
+            OPENSBI_COPY_MODE=1
             ;;
         "/dev/mmcblk2"*)
-            OPENSBI=/dev/mmcblk2p3
-            OPENSBI_SEEK=0
+            OPENSBI_MOUNT="/dev/mmcblk2p1"
+            OPENSBI_COPY_MODE=1
+            ;;
+        "/dev/sda"*)
+            OPENSBI_MOUNT="/dev/sda1"
+            OPENSBI_COPY_MODE=1
             ;;
         "/dev/nvme0n1"*)
-            if [ -e "/dev/mtdblock4" ]; then
-                OPENSBI=/dev/mtdblock4
+            if [ -e "/dev/mtdblock5" ]; then
+                # nor + ssd
+                OPENSBI=/dev/mtdblock5
                 # 以KB为单位
                 OPENSBI_SEEK=0
             elif [ -e "/dev/mtdblock0" ]; then
+                # nor + ssd
                 OPENSBI=/dev/mtdblock0
                 # 以KB为单位
-                OPENSBI_SEEK=448
+                OPENSBI_SEEK=1728
             else
-                OPENSBI=/dev/mmcblk2p3
-                OPENSBI_SEEK=0
+                # emmc + ssd
+                OPENSBI=/dev/mmcblk2
+                # 以KB为单位
+                OPENSBI_SEEK=1728
             fi
             ;;
         *)
@@ -58,8 +66,13 @@ configure)
         exit 1
     fi
 
-    # 待检查文件/分区列表
-    files="/usr/lib/riscv64-linux-gnu/opensbi/generic/fw_dynamic.itb $OPENSBI"
+    # 待检查文件列表
+    files="/usr/lib/riscv64-linux-gnu/opensbi/generic/fw_dynamic.itb"
+    if [ -n "$OPENSBI_COPY_MODE" ]; then
+        files="$files $OPENSBI_MOUNT"
+    else
+        files="$files $OPENSBI"
+    fi
     for file in $files; do
         if [ ! -e "$file" ]; then
             # 任意不存在则退出
@@ -70,7 +83,18 @@ configure)
 
     # 此前已经做了所有检查
     set -x
-    dd if=/usr/lib/riscv64-linux-gnu/opensbi/generic/fw_dynamic.itb of=$OPENSBI seek=$OPENSBI_SEEK bs=1K && sync
+    if [ -n "$OPENSBI_COPY_MODE" ]; then
+        # 文件复制模式：挂载分区并复制文件
+        mkdir -p /mnt/opensbi-install
+        mount $OPENSBI_MOUNT /mnt/opensbi-install
+        cp /usr/lib/riscv64-linux-gnu/opensbi/generic/fw_dynamic.itb /mnt/opensbi-install/opensbi.itb
+        sync
+        umount /mnt/opensbi-install
+        rmdir /mnt/opensbi-install
+    else
+        # 直接写入模式
+        dd if=/usr/lib/riscv64-linux-gnu/opensbi/generic/fw_dynamic.itb of=$OPENSBI seek=$OPENSBI_SEEK bs=1K && sync
+    fi
     set +x
     ;;
 esac
