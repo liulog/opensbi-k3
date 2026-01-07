@@ -16,7 +16,15 @@ configure)
         case $x in
         root=UUID=*)
             ROOT=${x#root=UUID=}
-            ROOT=$(blkid -s UUID | grep "$ROOT" | awk '{print $1}')
+            DEVICES=$(blkid -s UUID | grep "$ROOT" | awk '{print $1}')
+            DEVICE_COUNT=$(echo "$DEVICES" | wc -l)
+            if [ "$DEVICE_COUNT" -gt 1 ]; then
+                echo "Warning: Multiple devices found with the same UUID $ROOT:"
+                echo "$DEVICES"
+                echo "This may cause installation issues. Please ensure unique UUIDs."
+                exit 0
+            fi
+            ROOT=$(echo "$DEVICES" | head -n1)
             ;;
         root=*)
             ROOT=${x#root=}
