@@ -95,7 +95,7 @@ configure)
         # 文件复制模式：挂载分区并复制文件
         mkdir -p /mnt/opensbi-install
         mount $OPENSBI_MOUNT /mnt/opensbi-install
-        cp /usr/lib/riscv64-linux-gnu/opensbi/generic/fw_dynamic.itb /mnt/opensbi-install/opensbi.itb
+        cp /usr/lib/riscv64-linux-gnu/opensbi/generic/fw_dynamic.itb /mnt/opensbi-install/fw_dynamic.itb
         sync
         umount /mnt/opensbi-install
         rmdir /mnt/opensbi-install
