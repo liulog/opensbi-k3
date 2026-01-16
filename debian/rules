@@ -26,15 +26,15 @@ endif
 %:
 	dh $@
 
-override_dh_auto_configure:
-	sed -i "s/XBS-Commit-Id:.*/XBS-Commit-Id: $(COMMIT_ID)/" debian/control
-	dh_auto_configure
-
 override_dh_auto_build:
 	make \
 		V=$(VERBOSE) \
 		PLATFORM_DEFCONFIG=k3_defconfig \
 		PLATFORM=generic ; \
+
+override_dh_gencontrol:
+	echo "misc:CommitId=${COMMIT_ID}" >> debian/opensbi-spacemit.substvars
+	dh_gencontrol
 
 override_dh_installdocs:
 	dh_installdocs --exclude=doxygen.cfg
