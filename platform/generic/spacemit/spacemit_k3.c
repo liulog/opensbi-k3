@@ -192,7 +192,21 @@ static int spacemit_k3_final_init(bool cold_boot, void *fdt, const struct fdt_ma
 static bool spacemit_k3_cold_boot_allowed(u32 hartid, const struct fdt_match *match)
 {
 	/* enable core snoop ,iprf and tprf*/
-	csr_set(CSR_ML2SETUP, 1 << (hartid % PLATFORM_MAX_CPUS_PER_CLUSTER) | 1 << 16 | 1 << 18);
+	csr_set(CSR_ML2SETUP, 1 << (hartid % PLATFORM_MAX_CPUS_PER_CLUSTER) | IPRF | TPRF);
+
+	if (hartid >= 8) {
+		/* set the vector load instructions to bypass L1 cache,only cached in the L2 cache */
+		csr_set(CSR_PERF_CTRL, VEC_L1BYPASS);
+		/* Increase the L2 prefetch distance to 56 entries */
+		csr_set(CSR_PREFETCH_CTRL, L2_PERF_DIST);
+		/* Turn off full address correlation check to improve L2 performance */
+		csr_clear(CSR_ML2HINT, CIU_CHR2_DEPD_DIS);
+		csr_set(CSR_ML2HINT, CIU_CHR2_MER_DIS);
+	} else {
+		/* only disable x100 core*/
+		/* Disable the behavior of snb discarding prefetch when reaching a certain load */
+		csr_set(CSR_ML2HINT, CIU_PRF_THROT_DIS);
+	}
 
 	/* set the pmp per-core */
 	spacemit_k3_pmp_init();

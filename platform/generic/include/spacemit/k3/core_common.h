@@ -9,6 +9,32 @@
 #define CSR_MHINT	0x7c5
 #define CSR_ML2SETUP	0x7F0
 
+/*When the instruction fetch unit misses in the L2 Cache, the L2 Cache loads the cache line where the missed address is located. */
+#define IPRF		(_UL(1) << 16)
+/*Enable the TLB prefetch function of L2Cache */
+#define TPRF		(_UL(1) << 18)
+
+#define CSR_ML2HINT 0x7F7
+
+/* [1]Disbale read and prefetch transaction merge */
+#define CIU_CHR2_MER_DIS		(_UL(1) << 2)
+
+/* [3]Disable full address dependency check */
+#define CIU_CHR2_DEPD_DIS		(_UL(1) << 3)
+
+/* [4]Disable the behavior of snb discarding prefetch when reaching a certain load */
+#define CIU_PRF_THROT_DIS		(_UL(1) << 4)
+
+#define CSR_PERF_CTRL 0x7D0
+
+/*[32] Cache level control for vector load instructions */
+#define VEC_L1BYPASS		(_UL(1) << 32)
+
+#define CSR_PREFETCH_CTRL    0x7D1
+
+/*[11:10] Cache level control for vector load instructions */
+#define L2_PERF_DIST		(_UL(3) << 10)
+
 #define CACHE_LINE_SIZE		(64)
 #define CACHE_INV_ADDR_Msk	(0xffffffffffffffff << 6)
 
