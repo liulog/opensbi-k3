@@ -312,6 +312,16 @@ _start_warm:
 	csrw	CSR_MIE, zero
 
 	/*
+	 * enable core snoop
+	 */
+	csrw	ml2setup, zero
+	csrr	t0, CSR_MHARTID
+	andi	t1, t0, 3
+	li      a5, 1
+	sllw    a5, a5, t1
+	csrs    ml2setup, a5
+
+	/*
 	 *  enable dcache
 	 *  the reason why dcache is enabled here is because
 	 *  1. some instructions like amo depends on dcache
