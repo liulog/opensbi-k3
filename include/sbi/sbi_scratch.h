@@ -46,8 +46,8 @@
 #define SBI_SCRATCH_HARTINDEX_OFFSET		(14 * __SIZEOF_POINTER__)
 /** Offset of extra space in sbi_scratch */
 #define SBI_SCRATCH_EXTRA_SPACE_OFFSET		(15 * __SIZEOF_POINTER__)
-/** Maximum size of sbi_scratch (4KB) */
-#define SBI_SCRATCH_SIZE			(0x1000)
+/** Maximum size of sbi_scratch (8KB) */
+#define SBI_SCRATCH_SIZE			(0x2000)
 
 /* clang-format on */
 
