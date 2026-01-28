@@ -59,16 +59,19 @@ configure)
     if [ -n $ROOT ]; then
         case $ROOT in
         "/dev/mmcblk0"*)
-            OPENSBI_MOUNT="/dev/mmcblk0p1"
-            OPENSBI_COPY_MODE=1
+            OPENSBI=/dev/mmcblk0
+            # 以KB为单位
+            OPENSBI_SEEK=7168
             ;;
         "/dev/mmcblk2"*)
-            OPENSBI_MOUNT="/dev/mmcblk2p1"
-            OPENSBI_COPY_MODE=1
+            OPENSBI=/dev/mmcblk2
+            # 以KB为单位
+            OPENSBI_SEEK=7168
             ;;
         "/dev/sda"*)
-            OPENSBI_MOUNT="/dev/sda1"
-            OPENSBI_COPY_MODE=1
+            OPENSBI=/dev/sda
+            # 以KB为单位
+            OPENSBI_SEEK=7168
             ;;
         "/dev/nvme0n1"*)
             if [ -e "/dev/mtdblock5" ]; then
@@ -99,12 +102,7 @@ configure)
     fi
 
     # 待检查文件列表
-    files="/usr/lib/riscv64-linux-gnu/opensbi/generic/fw_dynamic.itb"
-    if [ -n "$OPENSBI_COPY_MODE" ]; then
-        files="$files $OPENSBI_MOUNT"
-    else
-        files="$files $OPENSBI"
-    fi
+    files="/usr/lib/riscv64-linux-gnu/opensbi/generic/fw_dynamic.itb $OPENSBI"
     for file in $files; do
         if [ ! -e "$file" ]; then
             # 任意不存在则退出
@@ -115,18 +113,7 @@ configure)
 
     # 此前已经做了所有检查
     set -x
-    if [ -n "$OPENSBI_COPY_MODE" ]; then
-        # 文件复制模式：挂载分区并复制文件
-        mkdir -p /mnt/opensbi-install
-        mount $OPENSBI_MOUNT /mnt/opensbi-install
-        cp /usr/lib/riscv64-linux-gnu/opensbi/generic/fw_dynamic.itb /mnt/opensbi-install/fw_dynamic.itb
-        sync
-        umount /mnt/opensbi-install
-        rmdir /mnt/opensbi-install
-    else
-        # 直接写入模式
-        dd if=/usr/lib/riscv64-linux-gnu/opensbi/generic/fw_dynamic.itb of=$OPENSBI seek=$OPENSBI_SEEK bs=1K && sync
-    fi
+    dd if=/usr/lib/riscv64-linux-gnu/opensbi/generic/fw_dynamic.itb of=$OPENSBI seek=$OPENSBI_SEEK bs=1K && sync
     set +x
     ;;
 esac
