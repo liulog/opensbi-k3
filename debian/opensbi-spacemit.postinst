@@ -36,6 +36,7 @@ configure)
         exit 0
     fi
 
+    BOOT_MODE=""
     for x in $(cat /proc/cmdline); do
         case $x in
         root=UUID=*)
@@ -53,27 +54,120 @@ configure)
         root=*)
             ROOT=${x#root=}
             ;;
+        boot_mode=*)
+            BOOT_MODE=${x#boot_mode=}
+            ;;
         esac
     done
 
-    if [ -n $ROOT ]; then
-        case $ROOT in
+    # 根据boot_mode获取启动介质设备
+    get_boot_device_from_mode() {
+        local mode=$1
+        case $mode in
+        emmc)
+            echo "/dev/mmcblk2"
+            ;;
+        sdcard)
+            echo "/dev/mmcblk0"
+            ;;
+        nor)
+            if [ -e "/dev/mtdblock0" ]; then
+                echo "/dev/mtdblock0"
+            else
+                echo ""
+            fi
+            ;;
+        nand)
+            # NAND设备也使用MTD子系统，通常是/dev/mtdblock0
+            if [ -e "/dev/mtdblock0" ]; then
+                echo "/dev/mtdblock0"
+            else
+                echo ""
+            fi
+            ;;
+        ufs)
+            echo "/dev/sda"
+            ;;
+        *)
+            echo ""
+            ;;
+        esac
+    }
+
+    # 从rootfs设备路径获取基础设备
+    get_base_device() {
+        local dev=$1
+        case $dev in
         "/dev/mmcblk0"*)
+            echo "/dev/mmcblk0"
+            ;;
+        "/dev/mmcblk2"*)
+            echo "/dev/mmcblk2"
+            ;;
+        "/dev/sda"*)
+            echo "/dev/sda"
+            ;;
+        "/dev/nvme0n1"*)
+            echo "/dev/nvme0n1"
+            ;;
+        *)
+            echo ""
+            ;;
+        esac
+    }
+
+    # 确定目标设备：如果有boot_mode且与rootfs设备不同，使用启动设备；否则使用rootfs设备
+    TARGET_DEVICE=""
+    if [ -n "$BOOT_MODE" ]; then
+        BOOT_DEVICE=$(get_boot_device_from_mode "$BOOT_MODE")
+        if [ -n "$BOOT_DEVICE" ] && [ -n "$ROOT" ]; then
+            ROOT_BASE_DEVICE=$(get_base_device "$ROOT")
+            # 比较启动设备和rootfs基础设备
+            if [ "$BOOT_DEVICE" != "$ROOT_BASE_DEVICE" ]; then
+                TARGET_DEVICE="$BOOT_DEVICE"
+                echo "Boot device ($BOOT_MODE -> $BOOT_DEVICE) differs from rootfs device ($ROOT_BASE_DEVICE), using boot device."
+            else
+                TARGET_DEVICE="$ROOT_BASE_DEVICE"
+                echo "Boot device matches rootfs device, using $TARGET_DEVICE."
+            fi
+        elif [ -n "$BOOT_DEVICE" ]; then
+            TARGET_DEVICE="$BOOT_DEVICE"
+            echo "Using boot device from boot_mode=$BOOT_MODE: $TARGET_DEVICE"
+        else
+            echo "Unsupported boot_mode=$BOOT_MODE, unable to determine boot device."
+            exit 1
+        fi
+    fi
+
+    # 如果没有确定目标设备（无boot_mode或解析失败），使用原有逻辑
+    if [ -z "$TARGET_DEVICE" ] && [ -n "$ROOT" ]; then
+        TARGET_DEVICE=$(get_base_device "$ROOT")
+    fi
+
+    if [ -n "$TARGET_DEVICE" ]; then
+        case $TARGET_DEVICE in
+        "/dev/mmcblk0")
             OPENSBI=/dev/mmcblk0
             # 以KB为单位
             OPENSBI_SEEK=7168
             ;;
-        "/dev/mmcblk2"*)
+        "/dev/mmcblk2")
             OPENSBI=/dev/mmcblk2
             # 以KB为单位
             OPENSBI_SEEK=7168
             ;;
-        "/dev/sda"*)
+        "/dev/sda")
             OPENSBI=/dev/sda
             # 以KB为单位
             OPENSBI_SEEK=7168
             ;;
-        "/dev/nvme0n1"*)
+        "/dev/mtdblock0")
+            OPENSBI=/dev/mtdblock0
+            # 以KB为单位
+            OPENSBI_SEEK=1728
+            ;;
+        "/dev/nvme0n1")
+            # 兼容无bootmode的情况
             if [ -e "/dev/mtdblock5" ]; then
                 # nor + ssd
                 OPENSBI=/dev/mtdblock5
@@ -92,12 +186,12 @@ configure)
             fi
             ;;
         *)
-            echo "Unsupported root=$ROOT"
+            echo "Unsupported target device=$TARGET_DEVICE"
             exit 1
             ;;
         esac
     else
-        echo "Missing root= in cmdline"
+        echo "Unable to determine target device (missing root= or boot_mode= in cmdline)"
         exit 1
     fi
 
