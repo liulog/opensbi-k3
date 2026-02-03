@@ -436,6 +436,7 @@ extern unsigned long hart_imisc_save_offset;
 int __rpmi_hsm_suspend(u32 type)
 {
 	int i, j, k;
+	int retry_count = 5;
 	unsigned long local_id;
 	struct imsic_config *imsic;
 	struct sbi_scratch *rscratch = NULL;
@@ -446,6 +447,7 @@ int __rpmi_hsm_suspend(u32 type)
 	/* mask the irq */
 	spacemit_mask_irq(current_hartid());
 
+_retry:
 	imsic->flags = 0;
 
 	/* query irq pending */
@@ -471,9 +473,17 @@ int __rpmi_hsm_suspend(u32 type)
 		local_id = csr_read(CSR_HGEIP);
 		if (local_id) {
 			imsic->flags = 1;
-		goto exit;
+			goto exit;
 		}
 	}
+
+	if (--retry_count != 0)
+		goto _retry;
+
+	/* disable local timer */
+	csr_write(CSR_STIMECMP, 0xffffffffffffffff);
+	/* disable all irq */
+	csr_clear(CSR_MIE, MIP_SSIP | MIP_MSIP | MIP_STIP | MIP_MTIP | MIP_SEIP | MIP_MEIP);
 
 	/* if have no pending, the save the interrupt file */
 	/* 1. save m-mode */
@@ -538,6 +548,16 @@ int __rpmi_hsm_suspend(u32 type)
 		}
 	}
 
+	if (type == (SBI_HSM_SUSP_NON_RET_BIT | SBI_HSM_SUSP_PLAT_BASE)) {
+		/* cpu pwr-down */
+		spacemit_vote_powrdown_core(current_hartid());
+		;
+	} else if (type == (SBI_HSM_SUSP_NON_RET_BIT | SBI_HSM_SUSP_PLAT_BASE | (1 << 24))) {
+		/* cluster power down */
+		spacemit_vote_powrdown_cluster(current_hartid());
+		;
+	}
+
 	/* disable prefetch */
 	csi_disable_data_preftch();
 	asm volatile ("fence iorw, iorw");
@@ -550,21 +570,16 @@ int __rpmi_hsm_suspend(u32 type)
 	/* disable core snoop */
 	csr_clear(CSR_ML2SETUP, 1 << (current_hartid() % PLATFORM_MAX_CPUS_PER_CLUSTER));
 	asm volatile ("fence iorw, iorw");
+	/* flush dcache all */
+	/* csi_flush_dcache_all(); */
+	/* asm volatile ("fence iorw, iorw"); */
 
-	if (type == (SBI_HSM_SUSP_NON_RET_BIT | SBI_HSM_SUSP_PLAT_BASE)) {
-		/* cpu pwr-down */
-		spacemit_vote_powrdown_core(current_hartid());
-		;
-	} else if (type == (SBI_HSM_SUSP_NON_RET_BIT | SBI_HSM_SUSP_PLAT_BASE | (1 << 24))) {
-		/* clear power down */
-		spacemit_vote_powrdown_cluster(current_hartid());
-		;
-	}
 
 	/* Wait for interrupt */
 	wfi();
 
 exit:
+	/* csi_flush_dcache_all(); */
 	spacemit_unmask_irq(current_hartid());
 
 	return 0;
