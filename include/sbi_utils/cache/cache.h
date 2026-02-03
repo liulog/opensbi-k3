@@ -124,7 +124,8 @@ static inline void csi_disable_data_preftch(void)
 
 static inline void csi_flush_dcache_all(void)
 {
-	asm volatile ("csrwi 0x7c2, 0x1");
+	csr_set(0x7c2, 0x3);
+	asm volatile ("fence iorw, iorw");
 }
 
 static inline void csi_disable_cache(void)
@@ -136,6 +137,5 @@ static inline void csi_invalidate_dcache_all(void)
 {
 	asm volatile ("csrwi 0x7c2, 0x2");
 }
-
 
 #endif
