@@ -194,6 +194,11 @@ static bool spacemit_k3_cold_boot_allowed(u32 hartid, const struct fdt_match *ma
 	/* enable core snoop ,iprf and tprf*/
 	csr_set(CSR_ML2SETUP, 1 << (hartid % PLATFORM_MAX_CPUS_PER_CLUSTER) | IPRF | TPRF);
 
+	// configure XIP address region with IO attribute
+	csr_clear(CSR_PMACFG0, 0xFFUL << 16);
+	csr_set(CSR_PMACFG0, 0x22UL << 16);
+	asm("sfence.vma zero, zero");
+
 	if (hartid >= 8) {
 		/* set the vector load instructions to bypass L1 cache,only cached in the L2 cache */
 		csr_set(CSR_PERF_CTRL, VEC_L1BYPASS);
