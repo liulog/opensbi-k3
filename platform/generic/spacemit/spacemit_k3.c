@@ -116,6 +116,52 @@ static const struct fdt_match spacemit_k3_mach[] = {
 
 PLAT_CCI_MAP;
 extern struct sbi_platform platform;
+extern void _start_warm(unsigned long);
+extern void _start_warm_dummy(unsigned long);
+
+void boot_entry_dummy(unsigned long sc)
+{
+	/* configure XIP address region with IO attribute */
+	csr_clear(CSR_PMACFG0, 0xFFUL << 16);
+	csr_set(CSR_PMACFG0, 0x22UL << 16);
+	asm("sfence.vma zero, zero");
+
+	/* set the vector load instructions to bypass L1 cache,only cached in the L2 cache */
+	csr_set(CSR_PERF_CTRL, VEC_L1BYPASS);
+	/* Increase the L2 prefetch distance to 56 entries */
+	csr_set(CSR_PREFETCH_CTRL, L2_PERF_DIST);
+	/* Turn off full address correlation check to improve L2 performance */
+	csr_clear(CSR_ML2HINT, CIU_CHR2_DEPD_DIS);
+	csr_set(CSR_ML2HINT, CIU_CHR2_MER_DIS);
+
+	/* set the pmp per-core */
+	spacemit_k3_pmp_init();
+
+	/* re-set the bootentry of cluster2 */
+	writel((unsigned long)_start_warm & 0xffffffff, (unsigned int *)(C2_RVBADDR_LO_ADDR));
+	writel((((unsigned long)_start_warm) >> 32) & 0xffffffff, (unsigned int*)(C2_RVBADDR_HI_ADDR));
+
+	spacemit_vote_powrdown_core(8);
+
+	/* disable local timer */
+	csr_write(CSR_STIMECMP, 0xffffffffffffffff);
+	/* disable all irq */
+	csr_clear(CSR_MIE, MIP_SSIP | MIP_MSIP | MIP_STIP | MIP_MTIP | MIP_SEIP | MIP_MEIP);
+	/* disable prefetch */
+	csi_disable_data_preftch();
+	asm volatile ("fence iorw, iorw");
+	/* flush dcache all */
+	csi_flush_dcache_all();
+	asm volatile ("fence iorw, iorw");
+	/* disable i/d cache */
+	csi_disable_cache();
+	asm volatile ("fence iorw, iorw");
+	/* disable core snoop */
+	csr_clear(CSR_ML2SETUP, 1 << (current_hartid() % PLATFORM_MAX_CPUS_PER_CLUSTER));
+	asm volatile ("fence iorw, iorw");
+
+	wfi();
+}
 
 #define CPU_TO_CLUSTER(cpu)    ((cpu) / PLATFORM_MAX_CPUS_PER_CLUSTER)
 
@@ -160,6 +206,15 @@ static int spacemit_k3_early_init(bool cold_boot, const void *fdt, const struct 
 			/* enable the cci */
 			cci_enable_snoop_dvm_reqs(cluster_id);
 		}
+
+		for (i = 0; i < platform.hart_count; ++i)
+			/* devote the cluster */
+			spacemit_devote_pwrdown_cluster(hartid);
+
+		/* then wakeup core8 which belongs cluster2 */
+		writel(((unsigned long)_start_warm_dummy) & 0xffffffff, (unsigned int *)(C2_RVBADDR_LO_ADDR));
+		writel((((unsigned long)_start_warm_dummy) >> 32) & 0xffffffff, (unsigned int*)(C2_RVBADDR_HI_ADDR));
+		writel((1 << 8), (unsigned int *)PMU_CAP_CORE8_WAKEUP);
 
 		/* deassert dmasys reset for cpus reach all tcm range */
 		writel(1, (unsigned int *)DMASYS_RESET);

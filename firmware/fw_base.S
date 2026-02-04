@@ -419,6 +419,99 @@ _skip_trap_handler_hyp:
 	/* We don't expect to reach here hence just hang */
 	j	_start_hang
 
+#ifdef CONFIG_PLATFORM_SPACEMIT_K3
+	.align 3
+	.globl _start_warm_dummy
+_start_warm_dummy:
+	/* Reset all registers except ra, a0, a1, a2, a3 and a4 for non-boot HART */
+	li	ra, 0
+	call	_reset_regs
+
+	/* Disable all interrupts */
+	csrw	CSR_MIE, zero
+
+	/*
+	 * enable core snoop
+	 */
+	csrw	ml2setup, zero
+	csrr	t0, CSR_MHARTID
+	andi	t1, t0, 3
+	li      a5, 1
+	sllw    a5, a5, t1
+	csrs    ml2setup, a5
+
+	/*
+	 *  enable dcache
+	 *  the reason why dcache is enabled here is because
+	 *  1. some instructions like amo depends on dcache
+	 *  2. if dcache is turned on in C code, the data read
+	 *	from the stack may be incorrect
+	 */
+	lui	a5, 0x10
+	addi	a5, a5, 115 # 10073
+	csrs	msetup, a5
+	fence	iorw, iorw
+
+	/* Find HART count and HART stack size */
+	lla	a4, platform
+#if __riscv_xlen > 32
+	lwu	s7, SBI_PLATFORM_HART_COUNT_OFFSET(a4)
+	lwu	s8, SBI_PLATFORM_HART_STACK_SIZE_OFFSET(a4)
+#else
+	lw	s7, SBI_PLATFORM_HART_COUNT_OFFSET(a4)
+	lw	s8, SBI_PLATFORM_HART_STACK_SIZE_OFFSET(a4)
+#endif
+	REG_L	s9, SBI_PLATFORM_HART_INDEX2ID_OFFSET(a4)
+
+	/* Find HART id */
+	csrr	s6, CSR_MHARTID
+
+	/* Find HART index */
+	beqz	s9, 3f
+	li	a4, 0
+1:
+#if __riscv_xlen > 32
+	lwu	a5, (s9)
+#else
+	lw	a5, (s9)
+#endif
+	beq	a5, s6, 2f
+	add	s9, s9, 4
+	add	a4, a4, 1
+	blt	a4, s7, 1b
+2:	add	s6, a4, zero
+3:	bge	s6, s7, _start_hang
+
+	/* Find the scratch space based on HART index */
+	lla	tp, _fw_end
+	mul	a5, s7, s8
+	add	tp, tp, a5
+	mul	a5, s8, s6
+	sub	tp, tp, a5
+	li	a5, SBI_SCRATCH_SIZE
+	sub	tp, tp, a5
+
+	/* update the mscratch */
+	csrw	CSR_MSCRATCH, tp
+
+	/* Setup stack */
+	add	sp, tp, zero
+
+	/* Setup trap handler */
+	lla	a4, _trap_handler
+	csrw	CSR_MTVEC, a4
+
+	/* Clear MDT here again for all harts */
+	CLEAR_MDT t0
+
+	/* Initialize SBI runtime */
+	csrr	a0, CSR_MSCRATCH
+	call	boot_entry_dummy
+
+	/* We don't expect to reach here hence just hang */
+	j	_start_hang
+#endif
+
 	.data
 	.align 3
 _boot_lottery:

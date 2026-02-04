@@ -433,6 +433,8 @@ void spacemit_vote_powrdown_cluster(uint32_t hartid)
 
 extern unsigned long hart_imisc_save_offset;
 
+#define CPU_TO_CLUSTER(cpu)    ((cpu) / PLATFORM_MAX_CPUS_PER_CLUSTER)
+
 int __rpmi_hsm_suspend(u32 type)
 {
 	int i, j, k;
@@ -548,14 +550,18 @@ _retry:
 		}
 	}
 
-	if (type == (SBI_HSM_SUSP_NON_RET_BIT | SBI_HSM_SUSP_PLAT_BASE)) {
-		/* cpu pwr-down */
+	if (CPU_TO_CLUSTER(current_hartid()) == 2)
 		spacemit_vote_powrdown_core(current_hartid());
-		;
-	} else if (type == (SBI_HSM_SUSP_NON_RET_BIT | SBI_HSM_SUSP_PLAT_BASE | (1 << 24))) {
-		/* cluster power down */
-		spacemit_vote_powrdown_cluster(current_hartid());
-		;
+	else {
+		if (type == (SBI_HSM_SUSP_NON_RET_BIT | SBI_HSM_SUSP_PLAT_BASE)) {
+			/* cpu pwr-down */
+			spacemit_vote_powrdown_core(current_hartid());
+			;
+		} else if (type == (SBI_HSM_SUSP_NON_RET_BIT | SBI_HSM_SUSP_PLAT_BASE | (1 << 24))) {
+			/* cluster power down */
+			spacemit_vote_powrdown_cluster(current_hartid());
+			;
+		}
 	}
 
 	/* disable prefetch */
@@ -812,7 +818,11 @@ void __rpmi_hsm_resume(void)
 
 void __rpmi_shutdown_process(void)
 {
-	spacemit_vote_powrdown_cluster(current_hartid());
+	if (CPU_TO_CLUSTER(current_hartid()) == 2)
+		spacemit_vote_powrdown_core(current_hartid());
+	else
+		spacemit_vote_powrdown_cluster(current_hartid());
+
 	/* disable local timer */
 	csr_write(CSR_STIMECMP, 0xffffffffffffffff);
 	/* disable all irq */
