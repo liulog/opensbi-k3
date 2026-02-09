@@ -839,4 +839,7 @@ void __rpmi_shutdown_process(void)
 	/* disable core snoop */
 	csr_clear(CSR_ML2SETUP, 1 << (current_hartid() % PLATFORM_MAX_CPUS_PER_CLUSTER));
 	asm volatile ("fence iorw, iorw");
+
+	while (1)
+		wfi();
 }
