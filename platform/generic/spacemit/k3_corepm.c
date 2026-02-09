@@ -482,8 +482,6 @@ _retry:
 	if (--retry_count != 0)
 		goto _retry;
 
-	/* disable local timer */
-	csr_write(CSR_STIMECMP, 0xffffffffffffffff);
 	/* disable all irq */
 	csr_clear(CSR_MIE, MIP_SSIP | MIP_MSIP | MIP_STIP | MIP_MTIP | MIP_SEIP | MIP_MEIP);
 
