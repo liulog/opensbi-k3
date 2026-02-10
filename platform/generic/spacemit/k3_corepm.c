@@ -557,7 +557,7 @@ _retry:
 			/* cpu pwr-down */
 			spacemit_vote_powrdown_core(current_hartid());
 			;
-		} else if (type == (SBI_HSM_SUSP_NON_RET_BIT | SBI_HSM_SUSP_PLAT_BASE | (1 << 24))) {
+		} else {
 			/* cluster power down */
 			spacemit_vote_powrdown_cluster(current_hartid());
 			;
