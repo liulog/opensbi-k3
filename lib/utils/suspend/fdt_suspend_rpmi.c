@@ -15,6 +15,7 @@
 #include <sbi_utils/mailbox/mailbox.h>
 #include <sbi_utils/mailbox/rpmi_mailbox.h>
 #include <sbi_utils/suspend/fdt_suspend.h>
+#include <spacemit/spacemit_config.h>
 
 struct rpmi_syssusp {
 	struct mbox_chan *chan;
@@ -61,6 +62,7 @@ static int rpmi_syssusp(uint32_t suspend_type, ulong resume_addr)
 			&resp, rpmi_u32_count(resp), rpmi_u32_count(resp));
 	if (rc)
 		return rc;
+	__rpmi_hsm_suspend(suspend_type);
 
 	/* Wait for interrupt */
 	wfi();
