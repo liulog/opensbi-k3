@@ -160,7 +160,8 @@ void boot_entry_dummy(unsigned long sc)
 	csr_clear(CSR_ML2SETUP, 1 << (current_hartid() % PLATFORM_MAX_CPUS_PER_CLUSTER));
 	asm volatile ("fence iorw, iorw");
 
-	wfi();
+	while (1)
+		wfi();
 }
 
 #define CPU_TO_CLUSTER(cpu)    ((cpu) / PLATFORM_MAX_CPUS_PER_CLUSTER)

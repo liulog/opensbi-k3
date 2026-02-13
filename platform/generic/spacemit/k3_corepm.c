@@ -578,9 +578,9 @@ _retry:
 	/* csi_flush_dcache_all(); */
 	/* asm volatile ("fence iorw, iorw"); */
 
-
 	/* Wait for interrupt */
-	wfi();
+	while (1)
+		wfi();
 
 exit:
 	/* csi_flush_dcache_all(); */
