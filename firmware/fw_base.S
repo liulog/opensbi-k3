@@ -14,6 +14,10 @@
 #include <sbi/sbi_scratch.h>
 #include <sbi/sbi_trap.h>
 
+#ifdef CONFIG_PLATFORM_SPACEMIT_K3
+#include <spacemit/k3/core_common.h>
+#endif
+
 #define BOOT_LOTTERY_ACQUIRED		1
 #define BOOT_STATUS_BOOT_HART_DONE	1
 
@@ -311,15 +315,16 @@ _start_warm:
 	/* Disable all interrupts */
 	csrw	CSR_MIE, zero
 
+#ifdef CONFIG_PLATFORM_SPACEMIT_K3
 	/*
 	 * enable core snoop
 	 */
-	csrw	ml2setup, zero
+	csrw	CSR_ML2SETUP, zero
 	csrr	t0, CSR_MHARTID
 	andi	t1, t0, 3
 	li      a5, 1
 	sllw    a5, a5, t1
-	csrs    ml2setup, a5
+	csrs    CSR_ML2SETUP, a5
 
 	/*
 	 *  enable dcache
@@ -330,10 +335,9 @@ _start_warm:
 	 */
 	lui	a5, 0x10
 	addi	a5, a5, 115 # 10073
-	csrs	msetup, a5
+	csrs	CSR_MSETUP, a5
 	fence	iorw, iorw
 
-#ifdef CONFIG_PLATFORM_SPACEMIT_K3
 	/*
 	 * Enable hypervisor extension for X100.
 	 * Skip this for A100 since A100 doesn't support it.
@@ -433,12 +437,12 @@ _start_warm_dummy:
 	/*
 	 * enable core snoop
 	 */
-	csrw	ml2setup, zero
+	csrw	CSR_ML2SETUP, zero
 	csrr	t0, CSR_MHARTID
 	andi	t1, t0, 3
 	li      a5, 1
 	sllw    a5, a5, t1
-	csrs    ml2setup, a5
+	csrs    CSR_ML2SETUP, a5
 
 	/*
 	 *  enable dcache
@@ -449,7 +453,7 @@ _start_warm_dummy:
 	 */
 	lui	a5, 0x10
 	addi	a5, a5, 115 # 10073
-	csrs	msetup, a5
+	csrs	CSR_MSETUP, a5
 	fence	iorw, iorw
 
 	/* Find HART count and HART stack size */
