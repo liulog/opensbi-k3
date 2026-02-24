@@ -171,6 +171,7 @@ static int spacemit_k3_early_init(bool cold_boot, const void *fdt, const struct 
 	int i;
 	unsigned int hartid;
 	unsigned long cluster_id;
+	struct sbi_scratch *scratch;
 
 	if (cold_boot) {
 		/* initiaze the cci */
@@ -180,23 +181,36 @@ static int spacemit_k3_early_init(bool cold_boot, const void *fdt, const struct 
 		for (i = 0; i < platform.hart_count; i += PLATFORM_MAX_CPUS_PER_CLUSTER) {
 
 			hartid = platform.hart_index2id[i];
+			scratch = sbi_hartid_to_scratch(hartid);
 
 			cluster_id = CPU_TO_CLUSTER(hartid);
 
-			switch (cluster_id) {
-			case 0:
+                        switch (cluster_id) {
+                        case 0:
+				writel(scratch->warmboot_addr & 0xffffffff, (unsigned int *)(C0_RVBADDR_LO_ADDR));
+				writel((scratch->warmboot_addr >> 32) & 0xffffffff, (unsigned int*)(C0_RVBADDR_HI_ADDR));
+
 				/* using hw type to flush l2 cache */
 				writel(PMU_L2_FLUSH_HW_EN | PMU_L2_FLUSH_HW_TYPE, (unsigned int *)PMU_C0_L2_FLUSH_CTRL);
 				break;
-			case 1:
+                       case 1:
+				writel(scratch->warmboot_addr & 0xffffffff, (unsigned int *)(C1_RVBADDR_LO_ADDR));
+				writel((scratch->warmboot_addr >> 32) & 0xffffffff, (unsigned int*)(C1_RVBADDR_HI_ADDR));
+
 				/* using hw type to flush l2 cache */
 				writel(PMU_L2_FLUSH_HW_EN | PMU_L2_FLUSH_HW_TYPE, (unsigned int *)PMU_C1_L2_FLUSH_CTRL);
 				break;
-			case 2:
+                       case 2:
+				writel(scratch->warmboot_addr & 0xffffffff, (unsigned int *)(C2_RVBADDR_LO_ADDR));
+				writel((scratch->warmboot_addr >> 32) & 0xffffffff, (unsigned int*)(C2_RVBADDR_HI_ADDR));
+
 				/* using hw type to flush l2 cache */
 				writel(PMU_L2_FLUSH_HW_EN | PMU_L2_FLUSH_HW_TYPE, (unsigned int *)PMU_C2_L2_FLUSH_CTRL);
 				break;
-			case 3:
+                       case 3:
+				writel(scratch->warmboot_addr & 0xffffffff, (unsigned int *)(C3_RVBADDR_LO_ADDR));
+				writel((scratch->warmboot_addr >> 32) & 0xffffffff, (unsigned int*)(C3_RVBADDR_HI_ADDR));
+
 				/* using hw type to flush l2 cache */
 				writel(PMU_L2_FLUSH_HW_EN | PMU_L2_FLUSH_HW_TYPE, (unsigned int *)PMU_C3_L2_FLUSH_CTRL);
 				break;

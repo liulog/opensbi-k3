@@ -47,6 +47,10 @@ static struct rpmi_hsm *rpmi_hsm_get_pointer(u32 hartid)
 
 static int rpmi_hsm_start(u32 hartid, ulong resume_addr)
 {
+#ifdef CONFIG_PLATFORM_SPACEMIT_K3
+	spacemit_wakeup_core(hartid);
+	return 0;
+#else
 	struct rpmi_hsm_hart_start_req req;
 	struct rpmi_hsm_hart_start_resp resp;
 	struct rpmi_hsm *rpmi = rpmi_hsm_get_pointer(hartid);
@@ -62,10 +66,16 @@ static int rpmi_hsm_start(u32 hartid, ulong resume_addr)
 			rpmi->chan, RPMI_HSM_SRV_HART_START,
 			&req, rpmi_u32_count(req), rpmi_u32_count(req),
 			&resp, rpmi_u32_count(resp), rpmi_u32_count(resp));
+#endif
 }
 
 static int rpmi_hsm_stop(void)
 {
+#ifdef CONFIG_PLATFORM_SPACEMIT_K3
+	__rpmi_shutdown_process();
+
+	return 0;
+#else
 	int rc;
 	struct rpmi_hsm_hart_stop_req req;
 	struct rpmi_hsm_hart_stop_resp resp;
@@ -85,16 +95,13 @@ static int rpmi_hsm_stop(void)
 	if (rc)
 		return rc;
 
-#ifdef CONFIG_PLATFORM_SPACEMIT_K3
-	__rpmi_shutdown_process();
-#endif
-
 	/* Wait for interrupt */
 	wfi();
 
 	jump_warmboot();
 
 	return 0;
+#endif
 }
 
 #ifndef CONFIG_PLATFORM_SPACEMIT_K3

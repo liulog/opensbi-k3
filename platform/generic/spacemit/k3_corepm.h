@@ -6,6 +6,7 @@ void spacemit_vote_powrdown_cluster(uint32_t hartid);
 void spacemit_devote_pwrdown_cluster(uint32_t hartid);
 void spacemit_mask_irq(uint32_t hartid);
 void spacemit_unmask_irq(uint32_t hartid);
+int spacemit_wakeup_core(uint32_t hartid);
 
 int __rpmi_hsm_suspend(u32 type);
 void __rpmi_hsm_resume(void);

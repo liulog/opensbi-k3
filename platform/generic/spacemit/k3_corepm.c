@@ -841,3 +841,62 @@ void __rpmi_shutdown_process(void)
 	while (1)
 		wfi();
 }
+
+int spacemit_wakeup_core(uint32_t hartid)
+{
+       switch (hartid) {
+       case 0:
+               writel((1 << hartid), (unsigned int *)PMU_CAP_CORE0_WAKEUP);
+               break;
+       case 1:
+               writel((1 << hartid), (unsigned int *)PMU_CAP_CORE1_WAKEUP);
+               break;
+       case 2:
+               writel((1 << hartid), (unsigned int *)PMU_CAP_CORE2_WAKEUP);
+               break;
+       case 3:
+               writel((1 << hartid), (unsigned int *)PMU_CAP_CORE3_WAKEUP);
+               break;
+       case 4:
+               writel((1 << hartid), (unsigned int *)PMU_CAP_CORE4_WAKEUP);
+               break;
+       case 5:
+               writel((1 << hartid), (unsigned int *)PMU_CAP_CORE5_WAKEUP);
+               break;
+       case 6:
+               writel((1 << hartid), (unsigned int *)PMU_CAP_CORE6_WAKEUP);
+               break;
+       case 7:
+               writel((1 << hartid), (unsigned int *)PMU_CAP_CORE7_WAKEUP);
+               break;
+       case 8:
+               writel((1 << hartid), (unsigned int *)PMU_CAP_CORE8_WAKEUP);
+               break;
+       case 9:
+               writel((1 << hartid), (unsigned int *)PMU_CAP_CORE9_WAKEUP);
+               break;
+       case 10:
+               writel((1 << hartid), (unsigned int *)PMU_CAP_CORE10_WAKEUP);
+               break;
+       case 11:
+               writel((1 << hartid), (unsigned int *)PMU_CAP_CORE11_WAKEUP);
+               break;
+       case 12:
+               writel((1 << hartid), (unsigned int *)PMU_CAP_CORE12_WAKEUP);
+               break;
+       case 13:
+               writel((1 << hartid), (unsigned int *)PMU_CAP_CORE13_WAKEUP);
+               break;
+       case 14:
+               writel((1 << hartid), (unsigned int *)PMU_CAP_CORE14_WAKEUP);
+               break;
+       case 15:
+               writel((1 << hartid), (unsigned int *)PMU_CAP_CORE15_WAKEUP);
+               break;
+       default:
+               break;
+       }
+
+       return 0;
+}
+
