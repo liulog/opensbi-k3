@@ -316,6 +316,22 @@ _start_warm:
 	csrw	CSR_MIE, zero
 
 #ifdef CONFIG_PLATFORM_SPACEMIT_K3
+	/* set audio buffer to cacheable */
+	li      t0, 0xff
+	slli    t0, t0, 48
+	csrc    CSR_PMACFG0, t0
+	li      t0, 0x20
+	slli    t0, t0, 48
+	csrs    CSR_PMACFG0, t0
+	sfence.vma
+
+	/* set XIP address to IO attribute */
+	lui     t0, 0xff0
+	csrc    CSR_PMACFG0, t0
+	lui     t0, 0x220
+	csrs    CSR_PMACFG0, t0
+	sfence.vma
+
 	/*
 	 * enable core snoop
 	 */
@@ -433,6 +449,22 @@ _start_warm_dummy:
 
 	/* Disable all interrupts */
 	csrw	CSR_MIE, zero
+
+	/* set audio buffer to cacheable */
+	li      t0, 0xff
+	slli    t0, t0, 48
+	csrc    CSR_PMACFG0, t0
+	li      t0, 0x20
+	slli    t0, t0, 48
+	csrs    CSR_PMACFG0, t0
+	sfence.vma
+
+	/* set XIP address to IO attribute */
+	lui     t0, 0xff0
+	csrc    CSR_PMACFG0, t0
+	lui     t0, 0x220
+	csrs    CSR_PMACFG0, t0
+	sfence.vma
 
 	/*
 	 * enable core snoop
