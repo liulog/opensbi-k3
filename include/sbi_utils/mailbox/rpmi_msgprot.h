@@ -944,14 +944,14 @@ struct rpmi_pwrkey_query_pending_req {
 };
 
 struct rpmi_pwrkey_query_pending_resp {
-#define RPMI_PWRKEY_PRESS_OFFSET	(1 << 0)
-#define RPMI_PWRKEY_RELEASE_OFFSET	(1 << 1)
+#define RPMI_PWRKEY_RELEASE_OFFSET	(1 << 0)
+#define RPMI_PWRKEY_PRESS_OFFSET	(1 << 1)
 	s32 status;
 };
 
 struct rpmi_pwrkey_clear_pending_req {
-#define RPMI_PWRKEY_PRESS_OFFSET	(1 << 0)
-#define RPMI_PWRKEY_RELEASE_OFFSET	(1 << 1)
+#define RPMI_PWRKEY_RELEASE_OFFSET	(1 << 0)
+#define RPMI_PWRKEY_PRESS_OFFSET	(1 << 1)
 	u32 clear;
 };
 
