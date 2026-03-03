@@ -1,6 +1,7 @@
 #ifndef __CONFIG_CORE_PM_H_
 #define __CONFIG_CORE_PM_H_
 
+int __rpmi_hsm_suspend_pre(void);
 void spacemit_vote_powrdown_core(uint32_t hartid);
 void spacemit_vote_powrdown_cluster(uint32_t hartid);
 void spacemit_devote_pwrdown_cluster(uint32_t hartid);

@@ -56,13 +56,22 @@ static int rpmi_syssusp(uint32_t suspend_type, ulong resume_addr)
 	req.resume_addr_lo = resume_addr;
 	req.resume_addr_hi = (u64)resume_addr  >> 32;
 
+#ifdef CONFIG_PLATFORM_SPACEMIT_K3
+	rc = __rpmi_hsm_suspend_pre();
+	if (rc)
+		return 0;
+#endif
+
 	rc = rpmi_normal_request_with_status(
 			syssusp_ctx.chan, RPMI_SYSSUSP_SRV_SYSTEM_SUSPEND,
 			&req, rpmi_u32_count(req), rpmi_u32_count(req),
 			&resp, rpmi_u32_count(resp), rpmi_u32_count(resp));
 	if (rc)
 		return rc;
+
+#ifdef CONFIG_PLATFORM_SPACEMIT_K3
 	__rpmi_hsm_suspend(suspend_type);
+#endif
 
 	/* Wait for interrupt */
 	wfi();

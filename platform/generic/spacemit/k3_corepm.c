@@ -435,6 +435,65 @@ extern unsigned long hart_imisc_save_offset;
 
 #define CPU_TO_CLUSTER(cpu)    ((cpu) / PLATFORM_MAX_CPUS_PER_CLUSTER)
 
+int __rpmi_hsm_suspend_pre(void)
+{
+	int ret = 0;
+	int retry_count = 5;
+	unsigned long local_id;
+	struct imsic_config *imsic;
+	struct sbi_scratch *rscratch = NULL;
+
+	rscratch = sbi_hartindex_to_scratch(current_hartid());
+	imsic = sbi_scratch_offset_ptr(rscratch, hart_imisc_save_offset);
+
+	/* mask the irq */
+	spacemit_mask_irq(current_hartid());
+
+_retry:
+	imsic->flags = 0;
+
+	/* query irq pending */
+	/* 1. query s-mode irq pending */
+	local_id = csr_read(CSR_STOPEI);
+	local_id >>= TOPEI_ID_SHIFT;
+	if (local_id) {
+		ret = -1;
+		imsic->flags = 1;
+		goto exit;
+	}
+
+	/* 2. query m-mode irq pending */
+	local_id = csr_read(CSR_MTOPEI);
+	local_id >>= TOPEI_ID_SHIFT;
+	if (local_id) {
+		ret = -1;
+		imsic->flags = 1;
+		goto exit;
+	}
+
+	/* for a100 */
+	if (current_hartid() < 8) {
+		/* 3. query the h-mode irq pending */
+		local_id = csr_read(CSR_HGEIP);
+		if (local_id) {
+			ret = -1;
+			imsic->flags = 1;
+			goto exit;
+		}
+	}
+
+	if (--retry_count != 0)
+		goto _retry;
+
+exit:
+	if (ret == -1) {
+		/* will not let the system enter low power mode, and not send 'suspend' to rcpu */
+		spacemit_unmask_irq(current_hartid());
+	}
+
+	return ret;
+}
+
 int __rpmi_hsm_suspend(u32 type)
 {
 	int i, j, k;
