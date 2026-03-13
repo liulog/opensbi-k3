@@ -136,6 +136,7 @@ struct rpmi_shmem_mbox_controller {
 	u32 slot_size;
 	u32 queue_count;
 	struct rpmi_mb_regs *mb_regs;
+	unsigned long timebase_frequency;
 	struct smq_queue_ctx queue_ctx_tbl[RPMI_QUEUE_IDX_MAX_COUNT];
 	/* Mailbox framework related members */
 	struct mbox_controller controller;
@@ -152,6 +153,33 @@ struct rpmi_shmem_mbox_controller {
 };
 
 /**************** Shared Memory Queues Helpers **************/
+
+static u64 rpmi_get_ticks(void)
+{
+	return csr_read(CSR_TIME);
+}
+
+static void rpmi_wait_msecs(struct rpmi_shmem_mbox_controller *mctl,
+			    u32 delay_ms)
+{
+	u64 start, delta;
+
+	if (sbi_timer_get_device()) {
+		sbi_timer_mdelay(delay_ms);
+		return;
+	}
+
+	if (!mctl->timebase_frequency || !delay_ms)
+		return;
+
+	start = rpmi_get_ticks();
+	delta = ((u64)mctl->timebase_frequency * delay_ms) / 1000;
+	if (!delta)
+		delta = 1;
+
+	while ((rpmi_get_ticks() - start) < delta)
+		cpu_relax();
+}
 
 static bool __smq_queue_full(struct smq_queue_ctx *qctx)
 {
@@ -359,7 +387,7 @@ static int smq_rx(struct rpmi_shmem_mbox_controller *mctl,
 		if (!ret)
 			return 0;
 
-		sbi_timer_mdelay(1);
+		rpmi_wait_msecs(mctl, 1);
 		rxretry += 1;
 	} while (rxretry < xfer->rx_timeout);
 
@@ -396,7 +424,7 @@ static int smq_tx(struct rpmi_shmem_mbox_controller *mctl,
 		if (!ret)
 			return 0;
 
-		sbi_timer_mdelay(1);
+		rpmi_wait_msecs(mctl, 1);
 		txretry += 1;
 	} while (txretry < xfer->tx_timeout);
 
@@ -616,6 +644,10 @@ static int rpmi_shmem_transport_init(struct rpmi_shmem_mbox_controller *mctl,
 					"riscv,rpmi-shmem-mbox");
 	if (ret)
 		return ret;
+
+	ret = fdt_parse_timebase_frequency(fdt, &mctl->timebase_frequency);
+	if (ret)
+		mctl->timebase_frequency = 0;
 
 	/* get queue slot size in bytes */
 	prop_slotsz = fdt_getprop(fdt, nodeoff, "riscv,slot-size", &len);
