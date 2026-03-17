@@ -162,15 +162,21 @@ configure)
             OPENSBI_SEEK=7168
             ;;
         "/dev/mtdblock0")
-            OPENSBI=/dev/mtdblock0
-            # 以KB为单位
-            OPENSBI_SEEK=1728
+            if [ -e "/dev/mtdblock4" ]; then
+                OPENSBI=/dev/mtdblock4
+                # 以KB为单位
+                OPENSBI_SEEK=0
+            elif [ -e "/dev/mtdblock0" ]; then
+                OPENSBI=/dev/mtdblock0
+                # 以KB为单位
+                OPENSBI_SEEK=1728
+            fi
             ;;
         "/dev/nvme0n1")
             # 兼容无bootmode的情况
-            if [ -e "/dev/mtdblock5" ]; then
+            if [ -e "/dev/mtdblock4" ]; then
                 # nor + ssd
-                OPENSBI=/dev/mtdblock5
+                OPENSBI=/dev/mtdblock4
                 # 以KB为单位
                 OPENSBI_SEEK=0
             elif [ -e "/dev/mtdblock0" ]; then
