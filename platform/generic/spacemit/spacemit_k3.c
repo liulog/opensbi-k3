@@ -132,6 +132,12 @@ void boot_entry_dummy(unsigned long sc)
 	/* set the pmp per-core */
 	spacemit_k3_pmp_init();
 
+	/* devote early */
+	spacemit_devote_pwrdown_cluster(current_hartid());
+
+	/* de-vote core acpr */
+	spacemit_devote_core_apcr(current_hartid());
+
 	/* re-set the bootentry of cluster2 */
 	writel((unsigned long)_start_warm & 0xffffffff, (unsigned int *)(C2_RVBADDR_LO_ADDR));
 	writel((((unsigned long)_start_warm) >> 32) & 0xffffffff, (unsigned int*)(C2_RVBADDR_HI_ADDR));
@@ -248,8 +254,18 @@ unsigned long hart_imisc_save_offset;
 
 static int spacemit_k3_final_init(bool cold_boot, void *fdt, const struct fdt_match *match)
 {
-	if (cold_boot)
+	int i;
+	struct imsic_config *imsic;
+	struct sbi_scratch *rscratch = NULL;
+
+	if (cold_boot) {
 		hart_imisc_save_offset = sbi_scratch_alloc_offset(sizeof(struct imsic_config));
+		for (i = 0; i < platform.hart_count; ++i) {
+			rscratch = sbi_hartindex_to_scratch(i);
+			imsic = sbi_scratch_offset_ptr(rscratch, hart_imisc_save_offset);
+			imsic->syssusp = 0;
+		}
+	}
 
 	return 0;
 }
@@ -273,6 +289,9 @@ static bool spacemit_k3_cold_boot_allowed(u32 hartid, const struct fdt_match *ma
 
 	/* devote early */
 	spacemit_devote_pwrdown_cluster(hartid);
+
+	/* de-vote core acpr */
+	spacemit_devote_core_apcr(hartid);
 
 	/* dealing with resuming process */
 	if ((__sbi_hsm_hart_get_state(hartid) == SBI_HSM_STATE_SUSPENDED) && (hartid == 0))

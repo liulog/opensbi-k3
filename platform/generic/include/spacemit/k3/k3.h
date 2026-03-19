@@ -80,6 +80,26 @@
 #define PMU_CX_CAPMP_IDLE_CFG14		(0xd4282800 + 0x224)
 #define PMU_CX_CAPMP_IDLE_CFG15		(0xd4282800 + 0x228)
 
+#define APCR_CORE0_VETE_REG		(0xd4050000 + 0x10c0)
+#define APCR_CORE1_VETE_REG		(0xd4050000 + 0x10c4)
+#define APCR_CORE2_VETE_REG		(0xd4050000 + 0x10c8)
+#define APCR_CORE3_VETE_REG		(0xd4050000 + 0x10cc)
+#define APCR_CORE4_VETE_REG		(0xd4050000 + 0x10d0)
+#define APCR_CORE5_VETE_REG		(0xd4050000 + 0x10d4)
+#define APCR_CORE6_VETE_REG		(0xd4050000 + 0x10d8)
+#define APCR_CORE7_VETE_REG		(0xd4050000 + 0x10dc)
+#define APCR_CORE8_VETE_REG		(0xd4050000 + 0x10e0)
+#define APCR_CORE9_VETE_REG		(0xd4050000 + 0x10e4)
+#define APCR_CORE10_VETE_REG		(0xd4050000 + 0x10e8)
+#define APCR_CORE11_VETE_REG		(0xd4050000 + 0x10ec)
+#define APCR_CORE12_VETE_REG		(0xd4050000 + 0x10f0)
+#define APCR_CORE13_VETE_REG		(0xd4050000 + 0x10f4)
+#define APCR_CORE14_VETE_REG		(0xd4050000 + 0x10f8)
+#define APCR_CORE15_VETE_REG		(0xd4050000 + 0x10fc)
+#define APCR_PER_VETE_REG		(0xd4050000 + 0x1098)
+
+#define APCR_COREX_DEFAULT_VATE_VALUE	((1 << 3) | (1 << 13) | (1 << 14) | (1 << 19) | (1 << 25) | (1 << 26) | (1 << 27) | (1 << 29) | (1 << 31))
+
 #define PMU_C0_L2_FLUSH_CTRL		(0xd8440000 + 0x1b0)
 #define PMU_C1_L2_FLUSH_CTRL		(0xd8440000 + 0x1b4)
 #define PMU_C2_L2_FLUSH_CTRL		(0xd8440000 + 0x1c4)
@@ -92,8 +112,8 @@
 #define PMU_L2_FLUSH_HW_EN		(1 << 2)
 
 #define CPU_MASK_FI_INTTERUPT		((1 << 3) | (1 << 4))
-#define CPU_PWR_DOWN_VALUE		(0x3)
-#define CLUSTER_PWR_DOWN_VALUE		(0x7)
+#define CPU_PWR_DOWN_VALUE		(0x1f)
+#define CLUSTER_PWR_DOWN_VALUE		(0x8f)
 
 /* this is the max cluster count of this platform */
 #define PLATFORM_CLUSTER_COUNT		(4U)
@@ -128,6 +148,7 @@ struct himsic_config {
 
 struct imsic_config {
 	unsigned int flags;
+	unsigned int syssusp;
 	/* m-mode */
 	unsigned long long meidelivery;
 	unsigned long long meithreshold;

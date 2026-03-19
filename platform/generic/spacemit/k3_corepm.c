@@ -110,6 +110,189 @@ void spacemit_mask_irq(uint32_t hartid)
 	}
 }
 
+
+void spacemit_vote_core_apcr(uint32_t hartid)
+{
+	unsigned int value;
+
+	/* vote core power-down & cluster power-down */
+	switch (hartid) {
+	case 0:
+		value = readl((unsigned int *)APCR_CORE0_VETE_REG);
+		value |= APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE0_VETE_REG);
+		break;
+	case 1:
+		value = readl((unsigned int *)APCR_CORE1_VETE_REG);
+		value |= APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE1_VETE_REG);
+		break;
+	case 2:
+		value = readl((unsigned int *)APCR_CORE2_VETE_REG);
+		value |= APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE2_VETE_REG);
+		break;
+	case 3:
+		value = readl((unsigned int *)APCR_CORE3_VETE_REG);
+		value |= APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE3_VETE_REG);
+		break;
+	case 4:
+		value = readl((unsigned int *)APCR_CORE4_VETE_REG);
+		value |= APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE4_VETE_REG);
+		break;
+	case 5:
+		value = readl((unsigned int *)APCR_CORE5_VETE_REG);
+		value |= APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE5_VETE_REG);
+		break;
+	case 6:
+		value = readl((unsigned int *)APCR_CORE6_VETE_REG);
+		value |= APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE6_VETE_REG);
+		break;
+	case 7:
+		value = readl((unsigned int *)APCR_CORE7_VETE_REG);
+		value |= APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE7_VETE_REG);
+		break;
+	case 8:
+		value = readl((unsigned int *)APCR_CORE8_VETE_REG);
+		value |= APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE8_VETE_REG);
+		break;
+	case 9:
+		value = readl((unsigned int *)APCR_CORE9_VETE_REG);
+		value |= APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE9_VETE_REG);
+		break;
+	case 10:
+		value = readl((unsigned int *)APCR_CORE10_VETE_REG);
+		value |= APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE10_VETE_REG);
+		break;
+	case 11:
+		value = readl((unsigned int *)APCR_CORE11_VETE_REG);
+		value |= APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE11_VETE_REG);
+		break;
+	case 12:
+		value = readl((unsigned int *)APCR_CORE12_VETE_REG);
+		value |= APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE12_VETE_REG);
+		break;
+	case 13:
+		value = readl((unsigned int *)APCR_CORE13_VETE_REG);
+		value |= APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE13_VETE_REG);
+		break;
+	case 14:
+		value = readl((unsigned int *)APCR_CORE14_VETE_REG);
+		value |= APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE14_VETE_REG);
+		break;
+	case 15:
+		value = readl((unsigned int *)APCR_CORE15_VETE_REG);
+		value |= APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE15_VETE_REG);
+		break;
+	default:
+		break;
+	}
+}
+
+void spacemit_devote_core_apcr(uint32_t hartid)
+{
+	unsigned int value;
+
+	/* vote core power-down & cluster power-down */
+	switch (hartid) {
+	case 0:
+		value = readl((unsigned int *)APCR_CORE0_VETE_REG);
+		value &= ~APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE0_VETE_REG);
+		break;
+	case 1:
+		value = readl((unsigned int *)APCR_CORE1_VETE_REG);
+		value &= ~APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE1_VETE_REG);
+		break;
+	case 2:
+		value = readl((unsigned int *)APCR_CORE2_VETE_REG);
+		value &= ~APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE2_VETE_REG);
+		break;
+	case 3:
+		value = readl((unsigned int *)APCR_CORE3_VETE_REG);
+		value &= ~APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE3_VETE_REG);
+		break;
+	case 4:
+		value = readl((unsigned int *)APCR_CORE4_VETE_REG);
+		value &= ~APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE4_VETE_REG);
+		break;
+	case 5:
+		value = readl((unsigned int *)APCR_CORE5_VETE_REG);
+		value &= ~APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE5_VETE_REG);
+		break;
+	case 6:
+		value = readl((unsigned int *)APCR_CORE6_VETE_REG);
+		value &= ~APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE6_VETE_REG);
+		break;
+	case 7:
+		value = readl((unsigned int *)APCR_CORE7_VETE_REG);
+		value &= ~APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE7_VETE_REG);
+		break;
+	case 8:
+		value = readl((unsigned int *)APCR_CORE8_VETE_REG);
+		value &= ~APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE8_VETE_REG);
+		break;
+	case 9:
+		value = readl((unsigned int *)APCR_CORE9_VETE_REG);
+		value &= ~APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE9_VETE_REG);
+		break;
+	case 10:
+		value = readl((unsigned int *)APCR_CORE10_VETE_REG);
+		value &= ~APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE10_VETE_REG);
+		break;
+	case 11:
+		value = readl((unsigned int *)APCR_CORE11_VETE_REG);
+		value &= ~APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE11_VETE_REG);
+		break;
+	case 12:
+		value = readl((unsigned int *)APCR_CORE12_VETE_REG);
+		value &= ~APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE12_VETE_REG);
+		break;
+	case 13:
+		value = readl((unsigned int *)APCR_CORE13_VETE_REG);
+		value &= ~APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE13_VETE_REG);
+		break;
+	case 14:
+		value = readl((unsigned int *)APCR_CORE14_VETE_REG);
+		value &= ~APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE14_VETE_REG);
+		break;
+	case 15:
+		value = readl((unsigned int *)APCR_CORE15_VETE_REG);
+		value &= ~APCR_COREX_DEFAULT_VATE_VALUE;
+		writel(value, (unsigned int *)APCR_CORE15_VETE_REG);
+		break;
+	default:
+		break;
+	}
+}
+
 void spacemit_unmask_irq(uint32_t hartid)
 {
 	unsigned int value;
@@ -446,6 +629,8 @@ int __rpmi_hsm_suspend_pre(void)
 	rscratch = sbi_hartindex_to_scratch(current_hartid());
 	imsic = sbi_scratch_offset_ptr(rscratch, hart_imisc_save_offset);
 
+	imsic->syssusp = 0;
+
 	/* mask the irq */
 	spacemit_mask_irq(current_hartid());
 
@@ -489,6 +674,10 @@ exit:
 	if (ret == -1) {
 		/* will not let the system enter low power mode, and not send 'suspend' to rcpu */
 		spacemit_unmask_irq(current_hartid());
+	} else {
+		imsic->syssusp = 1;
+		/* vote core acpr */
+		spacemit_vote_core_apcr(current_hartid());
 	}
 
 	return ret;
@@ -517,6 +706,7 @@ _retry:
 	local_id >>= TOPEI_ID_SHIFT;
 	if (local_id) {
 		imsic->flags = 1;
+		imsic->syssusp = 0;
 		goto exit;
 	}
 
@@ -525,6 +715,7 @@ _retry:
 	local_id >>= TOPEI_ID_SHIFT;
 	if (local_id) {
 		imsic->flags = 1;
+		imsic->syssusp = 0;
 		goto exit;
 	}
 
@@ -534,6 +725,7 @@ _retry:
 		local_id = csr_read(CSR_HGEIP);
 		if (local_id) {
 			imsic->flags = 1;
+			imsic->syssusp = 0;
 			goto exit;
 		}
 	}
@@ -607,7 +799,7 @@ _retry:
 		}
 	}
 
-	if (CPU_TO_CLUSTER(current_hartid()) == 2)
+	if (current_hartid() == 8)
 		spacemit_vote_powrdown_core(current_hartid());
 	else {
 		if (type == (SBI_HSM_SUSP_NON_RET_BIT | SBI_HSM_SUSP_PLAT_BASE)) {
@@ -790,6 +982,8 @@ void spacemit_devote_pwrdown_cluster(uint32_t hartid)
 
 #define CPU_TO_CLUSTER(cpu)    ((cpu) / PLATFORM_MAX_CPUS_PER_CLUSTER)
 
+extern void _start_warm_dummy(unsigned long);
+
 void __rpmi_hsm_resume(void)
 {
 	int i, j, k;
@@ -800,6 +994,15 @@ void __rpmi_hsm_resume(void)
 
 	rscratch = sbi_hartindex_to_scratch(hartid_index);
 	imsic = sbi_scratch_offset_ptr(rscratch, hart_imisc_save_offset);
+
+	/* if syssuspend, power up cluster2 first */
+	if (imsic->syssusp) {
+		imsic->syssusp = 0;
+		/* then wakeup core8 which belongs cluster2 */
+		writel(((unsigned long)_start_warm_dummy) & 0xffffffff, (unsigned int *)(C2_RVBADDR_LO_ADDR));
+		writel((((unsigned long)_start_warm_dummy) >> 32) & 0xffffffff, (unsigned int*)(C2_RVBADDR_HI_ADDR));
+		writel((1 << 8), (unsigned int *)PMU_CAP_CORE8_WAKEUP);
+	}
 
 	cluster_id = CPU_TO_CLUSTER(hartid_index);
 
@@ -875,10 +1078,13 @@ void __rpmi_hsm_resume(void)
 
 void __rpmi_shutdown_process(void)
 {
-	if (CPU_TO_CLUSTER(current_hartid()) == 2)
+	if (current_hartid() == 8)
 		spacemit_vote_powrdown_core(current_hartid());
 	else
 		spacemit_vote_powrdown_cluster(current_hartid());
+
+	/* vote core acpr */
+	spacemit_vote_core_apcr(current_hartid());
 
 	/* disable local timer */
 	csr_write(CSR_STIMECMP, 0xffffffffffffffff);
@@ -958,4 +1164,3 @@ int spacemit_wakeup_core(uint32_t hartid)
 
        return 0;
 }
-
