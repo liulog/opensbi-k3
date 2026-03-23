@@ -267,12 +267,7 @@ static bool spacemit_k3_cold_boot_allowed(u32 hartid, const struct fdt_match *ma
 		/* Turn off full address correlation check to improve L2 performance */
 		csr_clear(CSR_ML2HINT, CIU_CHR2_DEPD_DIS);
 		csr_set(CSR_ML2HINT, CIU_CHR2_MER_DIS);
-	} else {
-		/* only disable x100 core*/
-		/* Disable the behavior of snb discarding prefetch when reaching a certain load */
-		csr_set(CSR_ML2HINT, CIU_PRF_THROT_DIS);
 	}
-
 	/* set the pmp per-core */
 	spacemit_k3_pmp_init();
 
