@@ -162,30 +162,48 @@ configure)
             OPENSBI_SEEK=7168
             ;;
         "/dev/mtdblock0")
-            if [ -e "/dev/mtdblock4" ]; then
+            # 解析 /proc/mtd 判断分区布局
+            if [ ! -f "/proc/mtd" ]; then
+                echo "Error: /proc/mtd not found, cannot determine MTD partition layout"
+                exit 1
+            fi
+
+            # 获取 mtd0 的名称
+            MTD0_NAME=$(grep '^mtd0:' /proc/mtd | awk -F'"' '{print $2}')
+            
+            if [ "$MTD0_NAME" = "bootinfo" ]; then
+                # mtd0 是 bootinfo，说明各组件有独立分区，按分区编号写入
+                echo "Detected MTD partition layout: independent partitions"
                 OPENSBI=/dev/mtdblock4
                 # 以KB为单位
                 OPENSBI_SEEK=0
-            elif [ -e "/dev/mtdblock0" ]; then
+            else
+                # mtd0 是整个设备，使用偏移方式写入
+                echo "Detected MTD partition layout: single device with offsets (mtd0=$MTD0_NAME)"
                 OPENSBI=/dev/mtdblock0
                 # 以KB为单位
                 OPENSBI_SEEK=1728
             fi
             ;;
         "/dev/nvme0n1")
-            # 兼容无bootmode的情况
-            if [ -e "/dev/mtdblock4" ]; then
-                # nor + ssd
-                OPENSBI=/dev/mtdblock4
-                # 以KB为单位
-                OPENSBI_SEEK=0
-            elif [ -e "/dev/mtdblock0" ]; then
-                # nor + ssd
-                OPENSBI=/dev/mtdblock0
-                # 以KB为单位
-                OPENSBI_SEEK=1728
+            # NVMe+NOR 组合，检查 MTD 分区布局
+            if [ -f "/proc/mtd" ]; then
+                # 有 MTD，从 NOR 启动
+                MTD0_NAME=$(grep '^mtd0:' /proc/mtd | awk -F'"' '{print $2}')
+                
+                if [ "$MTD0_NAME" = "bootinfo" ]; then
+                    # mtd0 是 bootinfo，独立分区布局
+                    OPENSBI=/dev/mtdblock4
+                    # 以KB为单位
+                    OPENSBI_SEEK=0
+                else
+                    # mtd0 是整个设备，使用偏移方式
+                    OPENSBI=/dev/mtdblock0
+                    # 以KB为单位
+                    OPENSBI_SEEK=1728
+                fi
             else
-                # emmc + ssd
+                # 没有 MTD，使用 eMMC 启动
                 OPENSBI=/dev/mmcblk2
                 # 以KB为单位
                 OPENSBI_SEEK=1728
