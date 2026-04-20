@@ -629,8 +629,6 @@ int __rpmi_hsm_suspend_pre(void)
 	rscratch = sbi_hartindex_to_scratch(current_hartid());
 	imsic = sbi_scratch_offset_ptr(rscratch, hart_imisc_save_offset);
 
-	imsic->syssusp = 0;
-
 	/* mask the irq */
 	spacemit_mask_irq(current_hartid());
 
@@ -675,7 +673,6 @@ exit:
 		/* will not let the system enter low power mode, and not send 'suspend' to rcpu */
 		spacemit_unmask_irq(current_hartid());
 	} else {
-		imsic->syssusp = 1;
 		/* vote core acpr */
 		spacemit_vote_core_apcr(current_hartid());
 	}
@@ -706,7 +703,6 @@ _retry:
 	local_id >>= TOPEI_ID_SHIFT;
 	if (local_id) {
 		imsic->flags = 1;
-		imsic->syssusp = 0;
 		goto exit;
 	}
 
@@ -715,7 +711,6 @@ _retry:
 	local_id >>= TOPEI_ID_SHIFT;
 	if (local_id) {
 		imsic->flags = 1;
-		imsic->syssusp = 0;
 		goto exit;
 	}
 
@@ -725,7 +720,6 @@ _retry:
 		local_id = csr_read(CSR_HGEIP);
 		if (local_id) {
 			imsic->flags = 1;
-			imsic->syssusp = 0;
 			goto exit;
 		}
 	}
@@ -987,27 +981,12 @@ extern void _start_warm_dummy(unsigned long);
 void __rpmi_hsm_resume(void)
 {
 	int i, j, k;
-	unsigned long cluster_id;
 	struct imsic_config *imsic;
 	struct sbi_scratch *rscratch = NULL;
 	unsigned int hartid_index = current_hartid();
 
 	rscratch = sbi_hartindex_to_scratch(hartid_index);
 	imsic = sbi_scratch_offset_ptr(rscratch, hart_imisc_save_offset);
-
-	/* if syssuspend, power up cluster2 first */
-	if (imsic->syssusp) {
-		imsic->syssusp = 0;
-		/* then wakeup core8 which belongs cluster2 */
-		writel(((unsigned long)_start_warm_dummy) & 0xffffffff, (unsigned int *)(C2_RVBADDR_LO_ADDR));
-		writel((((unsigned long)_start_warm_dummy) >> 32) & 0xffffffff, (unsigned int*)(C2_RVBADDR_HI_ADDR));
-		writel((1 << 8), (unsigned int *)PMU_CAP_CORE8_WAKEUP);
-	}
-
-	cluster_id = CPU_TO_CLUSTER(hartid_index);
-
-	/* enable the cci */
-	cci_enable_snoop_dvm_reqs(cluster_id);
 
 	if (imsic->flags)
 		return;
@@ -1078,6 +1057,9 @@ void __rpmi_hsm_resume(void)
 
 void __rpmi_shutdown_process(void)
 {
+	/* mask the irq */
+	spacemit_mask_irq(current_hartid());
+
 	if (current_hartid() == 8)
 		spacemit_vote_powrdown_core(current_hartid());
 	else

@@ -219,13 +219,20 @@ static int spacemit_k3_early_init(bool cold_boot, const void *fdt, const struct 
 				break;
 			}
 
-			/* enable the cci */
-			cci_enable_snoop_dvm_reqs(cluster_id);
 		}
+
+		/* enable the cci */
+		cci_enable_snoop_dvm_reqs(0);
+		cci_enable_snoop_dvm_reqs(1);
+		cci_enable_snoop_dvm_reqs(2);
+		cci_enable_snoop_dvm_reqs(3);
+		cci_enable_snoop_dvm_reqs(4);
+		cci_enable_snoop_dvm_reqs(5);
+		cci_enable_snoop_dvm_reqs(6);
 
 		for (i = 0; i < platform.hart_count; ++i)
 			/* devote the cluster */
-			spacemit_devote_pwrdown_cluster(hartid);
+			spacemit_devote_pwrdown_cluster(i);
 
 		/* then wakeup core8 which belongs cluster2 */
 		writel(((unsigned long)_start_warm_dummy) & 0xffffffff, (unsigned int *)(C2_RVBADDR_LO_ADDR));
@@ -241,9 +248,6 @@ static int spacemit_k3_early_init(bool cold_boot, const void *fdt, const struct 
 		unsigned int current_hartid = current_hartid();
 
 		cluster_id = CPU_TO_CLUSTER(current_hartid);
-
-		/* enable the cci */
-		cci_enable_snoop_dvm_reqs(cluster_id);
 	}
 
 	return 0;
@@ -254,18 +258,8 @@ unsigned long hart_imisc_save_offset;
 
 static int spacemit_k3_final_init(bool cold_boot, void *fdt, const struct fdt_match *match)
 {
-	int i;
-	struct imsic_config *imsic;
-	struct sbi_scratch *rscratch = NULL;
-
-	if (cold_boot) {
+	if (cold_boot)
 		hart_imisc_save_offset = sbi_scratch_alloc_offset(sizeof(struct imsic_config));
-		for (i = 0; i < platform.hart_count; ++i) {
-			rscratch = sbi_hartindex_to_scratch(i);
-			imsic = sbi_scratch_offset_ptr(rscratch, hart_imisc_save_offset);
-			imsic->syssusp = 0;
-		}
-	}
 
 	return 0;
 }

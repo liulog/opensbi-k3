@@ -148,7 +148,6 @@ struct himsic_config {
 
 struct imsic_config {
 	unsigned int flags;
-	unsigned int syssusp;
 	/* m-mode */
 	unsigned long long meidelivery;
 	unsigned long long meithreshold;
