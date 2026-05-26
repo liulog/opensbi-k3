@@ -144,6 +144,14 @@ configure)
         TARGET_DEVICE=$(get_base_device "$ROOT")
     fi
 
+    # UEFI启动且未指定boot_mode时，若检测到NOR flash则回退到NOR+存储设备组合的启动逻辑
+    # 此场景通常为：NOR存放opensbi，SSD/UFS/eMMC存放rootfs
+    if [ -d "/sys/firmware/efi" ] && [ -z "$BOOT_MODE" ] && [ -f "/proc/mtd" ]; then
+        echo "UEFI boot without boot_mode, NOR flash detected, falling back to NOR boot device."
+        TARGET_DEVICE="/dev/mtdblock0"
+        BOOT_MODE="nor"
+    fi
+
     if [ -n "$TARGET_DEVICE" ]; then
         case $TARGET_DEVICE in
         "/dev/mmcblk0")
