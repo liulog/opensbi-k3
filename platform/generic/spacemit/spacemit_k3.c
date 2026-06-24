@@ -19,10 +19,23 @@
 #include <sbi/sbi_scratch.h>
 #include <sbi/sbi_domain.h>
 #include <sbi/sbi_timer.h>
+#include <sbi/sbi_trap_ldst.h>
 #include <sbi_utils/fdt/fdt_helper.h>
 #include <spacemit/spacemit_config.h>
 #include <sbi_utils/cache/cache.h>
 #include <sbi_utils/cci/cci.h>
+
+/* Sv39 page-table walk constants */
+#define SATP64_MODE_SHIFT	60
+#define SV39_LEVELS		3
+#define SV39_VPN_BITS		9
+#define SV39_VPN_MASK		((1UL << SV39_VPN_BITS) - 1)
+#define SV39_VPN2_SHIFT		30
+#define SV39_VPN1_SHIFT		21
+#define SV39_VPN0_SHIFT		PAGE_SHIFT
+#define PTE_V			(1UL << 0)	/* valid */
+#define PTE_RWX			(0xeUL)		/* leaf: R|W|X any set */
+#define PTE_PPN_SHIFT		10
 
 static const struct fdt_match spacemit_k3_mach[] = {
 	{ .compatible = "spacemit,k3" },
@@ -176,6 +189,11 @@ static int spacemit_k3_early_init(bool cold_boot, const void *fdt, const struct 
 						  SBI_DOMAIN_MEMREGION_ENF_PERMISSIONS);
 		if (rc)
 			return rc;
+
+		rc = sbi_domain_root_add_memrange(REGISTER_PRESERVATION_BASE, REGISTER_PRESERVATION_SIZE, PAGE_SIZE,
+						  SBI_DOMAIN_MEMREGION_M_RWX);
+		if (rc)
+			return rc;
 	} else {
 		unsigned int current_hartid = current_hartid();
 
@@ -227,9 +245,139 @@ static bool spacemit_k3_cold_boot_allowed(u32 hartid, const struct fdt_match *ma
 	return ((hartid == 0) ? true : false);
 }
 
+/*
+ * Translate the address from stval to a physical address.
+ * If S-mode MMU is off (satp.MODE == Bare), stval already is a physical address.
+ * Otherwise walk the Sv39/Sv48 page tables, which M-mode can read directly.
+ * Returns 0 on translation failure.
+ */
+static unsigned long s_addr_to_pa(unsigned long addr)
+{
+	unsigned long satp = csr_read(CSR_SATP);
+	unsigned long mode = (satp & SATP64_MODE) >> SATP64_MODE_SHIFT;
+
+	/* Bare mode: no translation, addr is already physical */
+	if (mode == SATP_MODE_OFF)
+		return addr;
+
+	if (mode != SATP_MODE_SV39)
+		return 0;
+
+	unsigned long ppn = satp & SATP64_PPN;
+	unsigned long vpn[SV39_LEVELS] = {
+		(addr >> SV39_VPN2_SHIFT) & SV39_VPN_MASK,
+		(addr >> SV39_VPN1_SHIFT) & SV39_VPN_MASK,
+		(addr >> SV39_VPN0_SHIFT) & SV39_VPN_MASK,
+	};
+
+	for (int i = 0; i < SV39_LEVELS; i++) {
+		unsigned long *ptep = (unsigned long *)((ppn << PAGE_SHIFT) + vpn[i] * sizeof(unsigned long));
+		unsigned long pte = *ptep;
+
+		if (!(pte & PTE_V))
+			return 0; /* invalid PTE */
+
+		ppn = (pte >> PTE_PPN_SHIFT) & SATP64_PPN;
+
+		if (pte & PTE_RWX) { /* leaf PTE: R|W|X set */
+			unsigned long pg_off_bits = PAGE_SHIFT + SV39_VPN_BITS * (2 - i);
+			unsigned long offset_mask = (1UL << pg_off_bits) - 1;
+			return (ppn << PAGE_SHIFT) | (addr & offset_mask);
+		}
+	}
+	return 0;
+}
+
+/*
+ * Registers within REGISTER_PRESERVATION that are strictly M-mode only.
+ * S-mode accesses to these must NOT be emulated — return SBI_ENODEV so the
+ * fault is redirected back to S-mode as a real access error.
+ *
+ * Covers: C0-C3 RVBADDR LO/HI, PMU_CAP_CORE*_WAKEUP,
+ *         PMU_CAP_CORE*_IDLE_CFG, PMU_CX_CAPMP_IDLE_CFG*.
+ */
+struct addr_range {
+	unsigned long base;
+	unsigned long size;
+};
+
+static const struct addr_range m_only_ranges[] = {
+	{ C0_RVBADDR_LO_ADDR, 2 * sizeof(u32) },
+	{ C1_RVBADDR_LO_ADDR, 2 * sizeof(u32) },
+	{ C2_RVBADDR_LO_ADDR, 2 * sizeof(u32) },
+	{ C3_RVBADDR_LO_ADDR, 2 * sizeof(u32) },
+	{ PMU_CX_CAPMP_IDLE_CFG1,  sizeof(u32) },		/* CFG1 */
+	{ PMU_CX_CAPMP_IDLE_CFG0, 7 * sizeof(u32) },		/* CFG0, IDLE_CFG0/1, WAKEUP0-3 */
+	{ PMU_CX_CAPMP_IDLE_CFG2, 2 * sizeof(u32) },		/* CFG2/3 */
+	{ PMU_CAP_CORE2_IDLE_CFG, 2 * sizeof(u32) },		/* IDLE_CFG2/3 */
+	{ PMU_CAP_CORE12_IDLE_CFG, 12 * sizeof(u32) },		/* IDLE_CFG12-15, CX_CFG12-15, WAKEUP12-15 */
+	{ PMU_CAP_CORE4_IDLE_CFG,  12 * sizeof(u32) },		/* IDLE_CFG4-7, CX_CFG4-7, WAKEUP4-7 */
+	{ PMU_CAP_CORE8_IDLE_CFG,  12 * sizeof(u32) },		/* IDLE_CFG8-11, CX_CFG8-11, WAKEUP8-11 */
+};
+
+static bool pa_is_m_only(unsigned long pa, int len)
+{
+	for (int i = 0; i < array_size(m_only_ranges); i++) {
+		if (pa >= m_only_ranges[i].base &&
+		    pa + len <= m_only_ranges[i].base + m_only_ranges[i].size)
+			return true;
+	}
+	return false;
+}
+
+static int spacemit_k3_emulate_load(int rlen, unsigned long addr,
+				    union sbi_ldst_data *out_val,
+				    const struct fdt_match *match)
+{
+	unsigned long pa = s_addr_to_pa(addr);
+
+	if (!pa || pa < REGISTER_PRESERVATION_BASE ||
+	    pa + rlen > REGISTER_PRESERVATION_BASE + REGISTER_PRESERVATION_SIZE)
+		return SBI_ENODEV;
+
+	/* M-mode-only registers: refuse S-mode emulation */
+	if (pa_is_m_only(pa, rlen))
+		return SBI_ENODEV;
+
+	switch (rlen) {
+	case 1: out_val->data_bytes[0] = readb((volatile void *)pa); break;
+	case 2: out_val->data_u32 = readw((volatile void *)pa); break;
+	case 4: out_val->data_u32 = readl((volatile void *)pa); break;
+	case 8: out_val->data_u64 = readq((volatile void *)pa); break;
+	default: return SBI_EINVAL;
+	}
+	return 0;
+}
+
+static int spacemit_k3_emulate_store(int wlen, unsigned long addr,
+				     union sbi_ldst_data in_val,
+				     const struct fdt_match *match)
+{
+	unsigned long pa = s_addr_to_pa(addr);
+
+	if (!pa || pa < REGISTER_PRESERVATION_BASE ||
+	    pa + wlen > REGISTER_PRESERVATION_BASE + REGISTER_PRESERVATION_SIZE)
+		return SBI_ENODEV;
+
+	/* M-mode-only registers: refuse S-mode emulation */
+	if (pa_is_m_only(pa, wlen))
+		return SBI_ENODEV;
+
+	switch (wlen) {
+	case 1: writeb(in_val.data_bytes[0], (volatile void *)pa); break;
+	case 2: writew(in_val.data_u32, (volatile void *)pa); break;
+	case 4: writel(in_val.data_u32, (volatile void *)pa); break;
+	case 8: writeq(in_val.data_u64, (volatile void *)pa); break;
+	default: return SBI_EINVAL;
+	}
+	return 0;
+}
+
 const struct platform_override spacemit_k3 = {
 	.match_table = spacemit_k3_mach,
 	.early_init = spacemit_k3_early_init,
 	.final_init = spacemit_k3_final_init,
 	.cold_boot_allowed = spacemit_k3_cold_boot_allowed,
+	.emulate_load = spacemit_k3_emulate_load,
+	.emulate_store = spacemit_k3_emulate_store,
 };

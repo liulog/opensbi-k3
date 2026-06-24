@@ -13,6 +13,7 @@
 #include <sbi/sbi_bitops.h>
 #include <sbi/sbi_hartmask.h>
 #include <sbi/sbi_heap.h>
+#include <sbi/sbi_trap_ldst.h>
 #include <sbi/sbi_platform.h>
 #include <sbi/sbi_string.h>
 #include <sbi/sbi_system.h>
@@ -424,6 +425,24 @@ static int generic_mpxy_init(void)
 	return 0;
 }
 
+static int generic_emulate_load(int rlen, unsigned long addr,
+				union sbi_ldst_data *out_val)
+{
+	if (generic_plat && generic_plat->emulate_load)
+		return generic_plat->emulate_load(rlen, addr, out_val,
+						  generic_plat_match);
+	return SBI_ENODEV;
+}
+
+static int generic_emulate_store(int wlen, unsigned long addr,
+				 union sbi_ldst_data in_val)
+{
+	if (generic_plat && generic_plat->emulate_store)
+		return generic_plat->emulate_store(wlen, addr, in_val,
+						   generic_plat_match);
+	return SBI_ENODEV;
+}
+
 const struct sbi_platform_operations platform_ops = {
 	.cold_boot_allowed	= generic_cold_boot_allowed,
 	.nascent_init		= generic_nascent_init,
@@ -443,6 +462,8 @@ const struct sbi_platform_operations platform_ops = {
 	.mpxy_init		= generic_mpxy_init,
 	.vendor_ext_check	= generic_vendor_ext_check,
 	.vendor_ext_provider	= generic_vendor_ext_provider,
+	.emulate_load		= generic_emulate_load,
+	.emulate_store		= generic_emulate_store,
 };
 
 struct sbi_platform platform = {

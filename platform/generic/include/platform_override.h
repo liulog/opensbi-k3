@@ -14,6 +14,7 @@
 #include <sbi/sbi_hart.h>
 #include <sbi/sbi_types.h>
 #include <sbi/sbi_trap.h>
+#include <sbi/sbi_trap_ldst.h>
 
 struct platform_override {
 	const struct fdt_match *match_table;
@@ -34,6 +35,12 @@ struct platform_override {
 				   struct sbi_trap_regs *regs,
 				   struct sbi_ecall_return *out,
 				   const struct fdt_match *match);
+	int (*emulate_load)(int rlen, unsigned long addr,
+			    union sbi_ldst_data *out_val,
+			    const struct fdt_match *match);
+	int (*emulate_store)(int wlen, unsigned long addr,
+			     union sbi_ldst_data in_val,
+			     const struct fdt_match *match);
 };
 
 #endif
