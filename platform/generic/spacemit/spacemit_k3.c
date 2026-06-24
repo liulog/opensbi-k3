@@ -211,6 +211,9 @@ static bool spacemit_k3_cold_boot_allowed(u32 hartid, const struct fdt_match *ma
 		csr_set(CSR_ML2HINT, CIU_CHR2_MER_DIS);
 	}
 
+	/* enable the rvtrace clk by default */
+	csr_set(CSR_ML2HINT, TRACE_TOP_ICGEN);
+
 	/* devote early */
 	spacemit_devote_pwrdown_cluster(hartid);
 

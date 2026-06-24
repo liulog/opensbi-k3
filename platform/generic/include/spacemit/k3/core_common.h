@@ -35,6 +35,9 @@
 /*[11:10] Cache level control for vector load instructions */
 #define L2_PERF_DIST		(_UL(3) << 10)
 
+/*[26]  icg cell */
+#define TRACE_TOP_ICGEN		(_UL(1) << 26)
+
 #define CACHE_LINE_SIZE		(64)
 #define CACHE_INV_ADDR_Msk	(0xffffffffffffffff << 6)
 
