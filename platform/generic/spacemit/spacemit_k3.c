@@ -162,17 +162,17 @@ static int spacemit_k3_early_init(bool cold_boot, const void *fdt, const struct 
 		 * ENF_PERMISSIONS locks the PMP entry so M-mode is also denied.
 		 * Protect the rcpu runtime environment from corruption
 		 */
-		rc = sbi_domain_root_add_memrange(RCPU0_RUNTIME_SPACE_BASE_ADDR, RCPU0_RUNTIME_SPACE_SIZE, 0x100000UL,
+		rc = sbi_domain_root_add_memrange(RCPU0_RUNTIME_SPACE_BASE_ADDR, RCPU0_RUNTIME_SPACE_SIZE, RCPU0_MEMRANGE_GRAN,
 						  SBI_DOMAIN_MEMREGION_ENF_PERMISSIONS);
 		if (rc)
 			return rc;
 
-		rc = sbi_domain_root_add_memrange(RCPU1_RUNTIME_SPACE_BASE_ADDR, RCPU1_RUNTIME_SPACE_SIZE, 0x100000UL,
+		rc = sbi_domain_root_add_memrange(RCPU1_RUNTIME_SPACE_BASE_ADDR, RCPU1_RUNTIME_SPACE_SIZE, RCPU1_MEMRANGE_GRAN,
 						  SBI_DOMAIN_MEMREGION_ENF_PERMISSIONS);
 		if (rc)
 			return rc;
 
-		rc = sbi_domain_root_add_memrange(RCPU_DTB_SPACE_BASE_ADDR, RCPU_DTB_SPACEMI_SIZE, 0x100000UL,
+		rc = sbi_domain_root_add_memrange(RCPU_DTB_SPACE_BASE_ADDR, RCPU_DTB_SPACEMI_SIZE, RCPU_DTB_MEMRANGE_GRAN,
 						  SBI_DOMAIN_MEMREGION_ENF_PERMISSIONS);
 		if (rc)
 			return rc;
