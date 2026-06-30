@@ -675,6 +675,8 @@ exit:
 	} else {
 		/* vote core acpr */
 		spacemit_vote_core_apcr(current_hartid());
+		/* vote cluster3 power down */
+		spacemit_vote_powrdown_cluster(12);
 	}
 
 	return ret;
@@ -793,7 +795,7 @@ _retry:
 		}
 	}
 
-	if (current_hartid() == 8)
+	if ((current_hartid() == 8) || (current_hartid() == 12))
 		spacemit_vote_powrdown_core(current_hartid());
 	else {
 		if (type == (SBI_HSM_SUSP_NON_RET_BIT | SBI_HSM_SUSP_PLAT_BASE)) {
@@ -1060,7 +1062,7 @@ void __rpmi_shutdown_process(void)
 	/* mask the irq */
 	spacemit_mask_irq(current_hartid());
 
-	if (current_hartid() == 8)
+	if ((current_hartid() == 8) || (current_hartid() == 12))
 		spacemit_vote_powrdown_core(current_hartid());
 	else
 		spacemit_vote_powrdown_cluster(current_hartid());
