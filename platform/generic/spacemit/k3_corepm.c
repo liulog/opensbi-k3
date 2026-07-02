@@ -685,8 +685,6 @@ exit:
 int __rpmi_hsm_suspend(u32 type)
 {
 	int i, j, k;
-	int retry_count = 5;
-	unsigned long local_id;
 	struct imsic_config *imsic;
 	struct sbi_scratch *rscratch = NULL;
 
@@ -695,42 +693,6 @@ int __rpmi_hsm_suspend(u32 type)
 
 	/* mask the irq */
 	spacemit_mask_irq(current_hartid());
-
-_retry:
-	imsic->flags = 0;
-
-	/* query irq pending */
-	/* 1. query s-mode irq pending */
-	local_id = csr_read(CSR_STOPEI);
-	local_id >>= TOPEI_ID_SHIFT;
-	if (local_id) {
-		imsic->flags = 1;
-		goto exit;
-	}
-
-	/* 2. query m-mode irq pending */
-	local_id = csr_read(CSR_MTOPEI);
-	local_id >>= TOPEI_ID_SHIFT;
-	if (local_id) {
-		imsic->flags = 1;
-		goto exit;
-	}
-
-	/* for a100 */
-	if (current_hartid() < 8) {
-		/* 3. query the h-mode irq pending */
-		local_id = csr_read(CSR_HGEIP);
-		if (local_id) {
-			imsic->flags = 1;
-			goto exit;
-		}
-	}
-
-	if (--retry_count != 0)
-		goto _retry;
-
-	/* disable all irq */
-	csr_clear(CSR_MIE, MIP_SSIP | MIP_MSIP | MIP_STIP | MIP_MTIP | MIP_SEIP | MIP_MEIP);
 
 	/* if have no pending, the save the interrupt file */
 	/* 1. save m-mode */
@@ -826,10 +788,14 @@ _retry:
 	/* asm volatile ("fence iorw, iorw"); */
 
 	/* Wait for interrupt */
-	while (1)
-		wfi();
+	wfi();
 
-exit:
+	csr_set(CSR_ML2SETUP, 1 << (current_hartid() % PLATFORM_MAX_CPUS_PER_CLUSTER));
+	asm volatile ("fence iorw, iorw");
+	/* enable d cache */
+	csi_enable_cache();
+	asm volatile ("fence iorw, iorw");
+
 	/* csi_flush_dcache_all(); */
 	spacemit_unmask_irq(current_hartid());
 
@@ -989,9 +955,6 @@ void __rpmi_hsm_resume(void)
 
 	rscratch = sbi_hartindex_to_scratch(hartid_index);
 	imsic = sbi_scratch_offset_ptr(rscratch, hart_imisc_save_offset);
-
-	if (imsic->flags)
-		return;
 
 	/* restore the imisc */
 	/* 1. restore m-mode */
