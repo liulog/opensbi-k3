@@ -27,6 +27,7 @@
 
 /** Minimum Base group version required */
 #define RPMI_BASE_VERSION_MIN		RPMI_VERSION(1, 0)
+#define RPMI_RX_RETRY_DELAY_US		20
 
 /**************** RPMI Transport Structures and Macros ***********/
 
@@ -174,6 +175,28 @@ static void rpmi_wait_msecs(struct rpmi_shmem_mbox_controller *mctl,
 
 	start = rpmi_get_ticks();
 	delta = ((u64)mctl->timebase_frequency * delay_ms) / 1000;
+	if (!delta)
+		delta = 1;
+
+	while ((rpmi_get_ticks() - start) < delta)
+		cpu_relax();
+}
+
+static void rpmi_wait_usecs(struct rpmi_shmem_mbox_controller *mctl,
+			    u32 delay_us)
+{
+	u64 start, delta;
+
+	if (sbi_timer_get_device()) {
+		sbi_timer_udelay(delay_us);
+		return;
+	}
+
+	if (!mctl->timebase_frequency || !delay_us)
+		return;
+
+	start = rpmi_get_ticks();
+	delta = ((u64)mctl->timebase_frequency * delay_us) / 1000000;
 	if (!delta)
 		delta = 1;
 
@@ -362,7 +385,8 @@ static int __smq_tx(struct smq_queue_ctx *qctx, struct rpmi_mb_regs *mb_regs,
 static int smq_rx(struct rpmi_shmem_mbox_controller *mctl,
 		  u32 queue_id, u32 service_group_id, struct mbox_xfer *xfer)
 {
-	int ret, rxretry = 0;
+	int ret;
+	unsigned long rxretry = 0, max_rxretry;
 	struct smq_queue_ctx *qctx;
 
 	if (mctl->queue_count < queue_id) {
@@ -371,6 +395,9 @@ static int smq_rx(struct rpmi_shmem_mbox_controller *mctl,
 		return SBI_EINVAL;
 	}
 	qctx = &mctl->queue_ctx_tbl[queue_id];
+	max_rxretry = (xfer->rx_timeout * 1000) / RPMI_RX_RETRY_DELAY_US;
+	if (!max_rxretry)
+		max_rxretry = 1;
 
 	/*
 	 * Once the timeout happens and call this function is returned
@@ -387,9 +414,9 @@ static int smq_rx(struct rpmi_shmem_mbox_controller *mctl,
 		if (!ret)
 			return 0;
 
-		rpmi_wait_msecs(mctl, 1);
+		rpmi_wait_usecs(mctl, RPMI_RX_RETRY_DELAY_US);
 		rxretry += 1;
-	} while (rxretry < xfer->rx_timeout);
+	} while (rxretry < max_rxretry);
 
 	return SBI_ETIMEDOUT;
 }
