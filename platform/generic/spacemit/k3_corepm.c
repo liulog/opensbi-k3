@@ -654,7 +654,7 @@ _retry:
 		goto exit;
 	}
 
-	/* for a100 */
+	/* for x100 */
 	if (current_hartid() < 8) {
 		/* 3. query the h-mode irq pending */
 		local_id = csr_read(CSR_HGEIP);
@@ -675,6 +675,12 @@ exit:
 	} else {
 		/* vote core acpr */
 		spacemit_vote_core_apcr(current_hartid());
+		/* vote cluster0 power down */
+		spacemit_vote_powrdown_cluster(1);
+		/* vote cluster1 power down */
+		spacemit_vote_powrdown_cluster(4);
+		/* vote cluster2 power down */
+		spacemit_vote_powrdown_cluster(8);
 		/* vote cluster3 power down */
 		spacemit_vote_powrdown_cluster(12);
 	}
@@ -693,6 +699,8 @@ int __rpmi_hsm_suspend(u32 type)
 
 	/* mask the irq */
 	spacemit_mask_irq(current_hartid());
+
+	imsic->flags = 0;
 
 	/* if have no pending, the save the interrupt file */
 	/* 1. save m-mode */
@@ -757,7 +765,8 @@ int __rpmi_hsm_suspend(u32 type)
 		}
 	}
 
-	if ((current_hartid() == 8) || (current_hartid() == 12))
+	if ((current_hartid() == 8) || (current_hartid() == 12) ||
+	    (current_hartid() == 1) || (current_hartid() == 4))
 		spacemit_vote_powrdown_core(current_hartid());
 	else {
 		if (type == (SBI_HSM_SUSP_NON_RET_BIT | SBI_HSM_SUSP_PLAT_BASE)) {
@@ -956,6 +965,9 @@ void __rpmi_hsm_resume(void)
 	rscratch = sbi_hartindex_to_scratch(hartid_index);
 	imsic = sbi_scratch_offset_ptr(rscratch, hart_imisc_save_offset);
 
+	if (imsic->flags)
+		return;
+
 	/* restore the imisc */
 	/* 1. restore m-mode */
 	csr_write(CSR_MISELECT, IMSIC_EITHRESHOLD);
@@ -1025,7 +1037,8 @@ void __rpmi_shutdown_process(void)
 	/* mask the irq */
 	spacemit_mask_irq(current_hartid());
 
-	if ((current_hartid() == 8) || (current_hartid() == 12))
+	if ((current_hartid() == 8) || (current_hartid() == 12) ||
+	    (current_hartid() == 1) || (current_hartid() == 4))
 		spacemit_vote_powrdown_core(current_hartid());
 	else
 		spacemit_vote_powrdown_cluster(current_hartid());
