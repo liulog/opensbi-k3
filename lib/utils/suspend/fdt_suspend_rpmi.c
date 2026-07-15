@@ -81,15 +81,19 @@ static int rpmi_syssusp(uint32_t suspend_type, ulong resume_addr)
 
 static int rpmi_system_suspend_check(u32 sleep_type)
 {
-	return ((sleep_type == SBI_SUSP_SLEEP_TYPE_SUSPEND) &&
-		syssusp_ctx.suspend_supported) ? 0 : SBI_EINVAL;
+	if (sleep_type == SBI_SUSP_SLEEP_TYPE_SUSPEND)
+		return syssusp_ctx.suspend_supported ? 0 : SBI_EINVAL;
+	if (sleep_type == SBI_SUSP_SLEEP_TYPE_HIBERNATE)
+		return syssusp_ctx.suspend_supported ? 0 : SBI_EINVAL;
+	return SBI_EINVAL;
 }
 
 static int rpmi_system_suspend(u32 sleep_type, ulong resume_addr)
 {
 	int rc;
 
-	if (sleep_type != SBI_SUSP_SLEEP_TYPE_SUSPEND)
+	if (sleep_type != SBI_SUSP_SLEEP_TYPE_SUSPEND &&
+	    sleep_type != SBI_SUSP_SLEEP_TYPE_HIBERNATE)
 		return SBI_ENOTSUPP;
 
 	rc = rpmi_syssusp(sleep_type, resume_addr);
