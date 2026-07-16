@@ -727,6 +727,8 @@ clean:
 	$(CMD_PREFIX)find $(build_dir) -type f -name "*.bin" -exec rm -rf {} +
 	$(if $(V), @echo " RM        $(build_dir)/*.dtb")
 	$(CMD_PREFIX)find $(build_dir) -type f -name "*.dtb" -exec rm -rf {} +
+	$(if $(V), @echo " RM        $(build_dir)/*.itb")
+	$(CMD_PREFIX)find $(build_dir) -type f -name "*.itb" -exec rm -rf {} +
 
 # Rule for "make distclean"
 .PHONY: distclean
