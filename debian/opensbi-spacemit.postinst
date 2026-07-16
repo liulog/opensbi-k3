@@ -227,8 +227,15 @@ configure)
         exit 1
     fi
 
+    ITB_DIR=/usr/lib/riscv64-linux-gnu/opensbi/generic
+    if [ -e "$ITB_DIR/fw_dynamic_sign.itb" ]; then
+        OPENSBI_ITB="$ITB_DIR/fw_dynamic_sign.itb"
+    else
+        OPENSBI_ITB="$ITB_DIR/fw_dynamic.itb"
+    fi
+
     # 待检查文件列表
-    files="/usr/lib/riscv64-linux-gnu/opensbi/generic/fw_dynamic.itb $OPENSBI"
+    files="$OPENSBI_ITB $OPENSBI"
     for file in $files; do
         if [ ! -e "$file" ]; then
             # 任意不存在则退出
@@ -239,7 +246,7 @@ configure)
 
     # 此前已经做了所有检查
     set -x
-    dd if=/usr/lib/riscv64-linux-gnu/opensbi/generic/fw_dynamic.itb of=$OPENSBI seek=$OPENSBI_SEEK bs=1K && sync
+    dd if=$OPENSBI_ITB of=$OPENSBI seek=$OPENSBI_SEEK bs=1K && sync
     set +x
     ;;
 esac

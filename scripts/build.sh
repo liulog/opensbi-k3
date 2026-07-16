@@ -1,9 +1,37 @@
 #!/bin/bash -e
 
 PACKAGE_SRC_NAME="opensbi-spacemit"
+PLATFORM_DEFCONFIG="k3_defconfig"
+PLATFORM="generic"
 CLEAN_CMD="make distclean"
-BUILD_CMD="make PLATFORM_DEFCONFIG=k3_defconfig PLATFORM=generic -j\${JOBS:-\$(nproc)}"
-BUILD_DEB_CMD='GIT_VERSION=$(git rev-parse --short HEAD 2>/dev/null); VERSION=$(if [ -n "$GIT_VERSION" ]; then echo "0~g$GIT_VERSION"; else echo "0~$(date +%Y%m%d%H%M%S)"; fi); rm -rf debian/changelog; dch --create --package '"$PACKAGE_SRC_NAME"' -v ${VERSION} --distribution resolute-porting --force-distribution "Bianbu Test"; DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -us -uc -b -ariscv64 -j${JOBS:-$(nproc)}'
+BUILD_CMD="make PLATFORM_DEFCONFIG=$PLATFORM_DEFCONFIG PLATFORM=$PLATFORM -j\${JOBS:-\$(nproc)}"
+
+SIGN_PRELUDE="
+DEFCFG=platform/$PLATFORM/configs/$PLATFORM_DEFCONFIG
+SELF_KEY=platform/$PLATFORM/spacemit/key
+"'
+if [ -n "$KEY_DIR" ]; then
+    echo "[sign] KEY_DIR=$KEY_DIR -> building SIGNED opensbi deb"
+    grep -q "^CONFIG_FIT_SIGNATURE=y" "$DEFCFG" || echo "CONFIG_FIT_SIGNATURE=y" >> "$DEFCFG"
+    rm -rf "$SELF_KEY.sbak"; cp -a "$SELF_KEY" "$SELF_KEY.sbak"
+    trap "if [ -e \"$SELF_KEY.sbak\" ]; then rm -rf \"$SELF_KEY\"; mv \"$SELF_KEY.sbak\" \"$SELF_KEY\"; fi" EXIT
+    cp -f "$KEY_DIR"/*.key "$SELF_KEY"/ 2>/dev/null || true
+    cp -f "$KEY_DIR"/*.crt "$SELF_KEY"/ 2>/dev/null || true
+else
+    sed -i "/^CONFIG_FIT_SIGNATURE=y/d" "$DEFCFG"
+fi
+'
+SIGN_REPORT="
+FW_DIR=build/platform/$PLATFORM/firmware
+"'
+if [ -n "$KEY_DIR" ]; then
+    ITB="$FW_DIR/fw_dynamic.itb"
+    [ -f "$ITB" ] || ITB="$FW_DIR/fw_dynamic_sign.itb"
+    echo "[sign] ===== mkimage -l $ITB (signature evidence) ====="
+    mkimage -l "$ITB" 2>/dev/null || true
+fi
+'
+BUILD_DEB_CMD="$SIGN_PRELUDE"'GIT_VERSION=$(git rev-parse --short HEAD 2>/dev/null); VERSION=$(if [ -n "$GIT_VERSION" ]; then echo "0~g$GIT_VERSION"; else echo "0~$(date +%Y%m%d%H%M%S)"; fi); rm -rf debian/changelog; dch --create --package '"$PACKAGE_SRC_NAME"' -v ${VERSION} --distribution resolute-porting --force-distribution "Bianbu Test"; DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -us -uc -b -ariscv64 -j${JOBS:-$(nproc)}'"$SIGN_REPORT"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -207,6 +235,17 @@ CONTAINER_ENV=("-e" "ARCH=riscv" "-e" "CROSS_COMPILE=$CROSS_COMPILE" "-e" "PATH=
 if [[ -n "$JOBS" ]]; then
     CONTAINER_ENV+=("-e" "JOBS=$JOBS")
 fi
+if [[ -n "$KEY_DIR" && ( -z "$DIRECT_BUILD" || "$DIRECT_BUILD" == "0" ) ]]; then
+    KEY_DIR_ABS="$(cd "$KEY_DIR" 2>/dev/null && pwd || echo "$KEY_DIR")"
+    case "$KEY_DIR_ABS" in
+        "$SOURCE_PARENT_DIR"/*)
+            CONTAINER_KEY_DIR="/workspace/${KEY_DIR_ABS#$SOURCE_PARENT_DIR/}" ;;
+        *)
+            CONTAINER_KEY_DIR="$KEY_DIR_ABS"
+            VOLUME_MOUNTS+=("-v" "$KEY_DIR_ABS:$KEY_DIR_ABS:ro") ;;
+    esac
+    CONTAINER_ENV+=("-e" "KEY_DIR=$CONTAINER_KEY_DIR")
+fi
 
 # Function to create user permission files for container
 create_user_files() {
@@ -282,6 +321,9 @@ run_command() {
         export CROSS_COMPILE=riscv64-unknown-linux-gnu-
         if [[ -n "$JOBS" ]]; then
             export JOBS
+        fi
+        if [[ -n "$KEY_DIR" ]]; then
+            export KEY_DIR
         fi
         bash -c "$cmd"
     else
