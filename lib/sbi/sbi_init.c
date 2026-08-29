@@ -14,6 +14,7 @@
 #include <sbi/sbi_cppc.h>
 #include <sbi/sbi_domain.h>
 #include <sbi/sbi_ecall.h>
+#include <sbi/sbi_ecall_bench.h>
 #include <sbi/sbi_fwft.h>
 #include <sbi/sbi_hart.h>
 #include <sbi/sbi_hartmask.h>
@@ -381,6 +382,11 @@ static void __noreturn init_coldboot(struct sbi_scratch *scratch, u32 hartid)
 			   __func__, rc);
 		sbi_hart_hang();
 	}
+
+#ifdef CONFIG_SBI_ECALL_BENCH
+	/* Install the test-only trap vector immediately before entering S-mode. */
+	sbi_ecall_bench_prepare();
+#endif
 
 	count = sbi_scratch_offset_ptr(scratch, init_count_offset);
 	(*count)++;

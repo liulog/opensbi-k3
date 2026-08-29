@@ -1090,8 +1090,10 @@ sbi_hart_switch_mode(unsigned long arg0, unsigned long arg1,
 		}
 	}
 
+#if defined(CONFIG_PLATFORM_SPACEMIT_K3)
 	csr_write(CSR_TCMCFG, 1);
-	csr_set(CSR_MHCR, (1<<0));
+	csr_set(CSR_MHCR, (1 << 0));
+#endif
 
 	register unsigned long a0 asm("a0") = arg0;
 	register unsigned long a1 asm("a1") = arg1;

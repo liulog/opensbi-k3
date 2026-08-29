@@ -8,6 +8,7 @@
  */
 
 #include <sbi/sbi_ecall_interface.h>
+#include <sbi/sbi_ecall_bench.h>
 #include <sbi/sbi_string.h>
 
 struct sbiret {
@@ -53,7 +54,73 @@ static inline void sbi_ecall_console_puts(const char *str)
 
 void test_main(unsigned long a0, unsigned long a1)
 {
+#ifdef CONFIG_SBI_ECALL_BENCH
+	const unsigned long iterations = 100000;
+	unsigned long total, baseline, net, average, remainder;
+	char output[256];
+	char *p = output;
+
+	extern unsigned long ecall_bench_run(unsigned long iterations);
+	extern unsigned long ecall_bench_baseline(unsigned long iterations);
+	extern void ecall_bench_stop(void);
+
+	static const char digits[] = "0123456789";
+	char tmp[3 * sizeof(unsigned long)];
+	unsigned int i;
+
+	(void)a0;
+	(void)a1;
+
+	baseline = ecall_bench_baseline(iterations);
+	total = ecall_bench_run(iterations);
+	ecall_bench_stop();
+
+	net = total > baseline ? total - baseline : 0;
+	average = net / iterations;
+	remainder = net % iterations;
+
+#define APPEND_LITERAL(str) do { \
+		const char *__s = (str); \
+		while (*__s) \
+			*p++ = *__s++; \
+	} while (0)
+#define APPEND_ULONG(value) do { \
+		unsigned long __v = (value); \
+		i = 0; \
+		do { \
+			tmp[i++] = digits[__v % 10]; \
+			__v /= 10; \
+		} while (__v); \
+		while (i) \
+			*p++ = tmp[--i]; \
+	} while (0)
+
+	APPEND_LITERAL("\nS-mode ECALL latency benchmark\n");
+	APPEND_LITERAL("iterations      : ");
+	APPEND_ULONG(iterations);
+	APPEND_LITERAL("\nmeasured cycles : ");
+	APPEND_ULONG(total);
+	APPEND_LITERAL("\nloop cycles     : ");
+	APPEND_ULONG(baseline);
+	APPEND_LITERAL("\nnet cycles      : ");
+	APPEND_ULONG(net);
+	APPEND_LITERAL("\ncycles/ecall    : ");
+	APPEND_ULONG(average);
+	APPEND_LITERAL(".");
+	remainder = (remainder * 1000) / iterations;
+	*p++ = digits[(remainder / 100) % 10];
+	*p++ = digits[(remainder / 10) % 10];
+	*p++ = digits[remainder % 10];
+	APPEND_LITERAL("\n");
+	*p = '\0';
+
+#undef APPEND_ULONG
+#undef APPEND_LITERAL
+
+	sbi_ecall_console_puts(output);
+#else
 	sbi_ecall_console_puts("\nTest payload running\n");
+#endif
 
 	while (1)
 		wfi();

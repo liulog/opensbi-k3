@@ -14,7 +14,9 @@
 #include <sbi/sbi_trap.h>
 #include <sbi/sbi_version.h>
 #include <sbi/riscv_asm.h>
+#if defined(CONFIG_PLATFORM_SPACEMIT_K3)
 #include <sbi_utils/cache/cache.h>
+#endif
 
 static int sbi_ecall_base_probe(unsigned long extid, unsigned long *out_val)
 {

@@ -62,6 +62,10 @@ config SBIUNIT
 	bool "Enable SBIUNIT tests"
 	default n
 
+config SBI_ECALL_BENCH
+	bool "Enable the temporary S-mode ECALL latency benchmark"
+	default n
+
 config SBI_ECALL_SSE
 	bool "SSE extension"
 	default y
