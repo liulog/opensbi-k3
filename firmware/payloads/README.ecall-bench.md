@@ -10,13 +10,18 @@ It is intentionally a test-only configuration:
 - Immediately before entering the built-in S-mode payload, OpenSBI saves the
   normal `mtvec`, disables M-mode interrupt sources, enables S-mode access to
   the `cycle` counter, and installs a temporary minimal trap vector.
-- The S-mode payload warms the path, measures 100,000 ECALL round trips, and
-  separately measures the loop overhead.
+- The S-mode payload executes one warm-up pass through the exact measured code
+  block, then measures 800 batches of 1,024 adjacent ECALL round trips.
+- Each measured batch is a branch-free 4 KiB instruction block containing
+  only consecutive ECALL instructions. Counter reads, accumulation, and the
+  outer-loop branch are outside the block.
+- A matching block of 1,024 non-compressed NOP instructions measures the
+  counter-boundary and S-mode instruction-stream baseline.
 - A final, untimed ECALL restores the original `mtvec`, `mie`, and
   `mcounteren`. The payload then prints the result through the normal SBI debug
   console extension.
 
-The measured fast path contains only a branch on `a6`, `mepc` read/update,
+The M-mode fast path contains only a branch on `a6`, `mepc` read/update,
 zeroing of `a0` and `a1`, and `mret`. It deliberately assumes a controlled,
 single-hart payload with no faults. Do not enable this option when booting a
 normal payload or operating system.

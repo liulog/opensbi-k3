@@ -55,13 +55,15 @@ static inline void sbi_ecall_console_puts(const char *str)
 void test_main(unsigned long a0, unsigned long a1)
 {
 #ifdef CONFIG_SBI_ECALL_BENCH
-	const unsigned long iterations = 100000;
+	const unsigned long batches = SBI_ECALL_BENCH_BATCHES;
+	const unsigned long batch_size = SBI_ECALL_BENCH_BATCH_SIZE;
+	const unsigned long iterations = batches * batch_size;
 	unsigned long total, baseline, net, average, remainder;
 	char output[256];
 	char *p = output;
 
-	extern unsigned long ecall_bench_run(unsigned long iterations);
-	extern unsigned long ecall_bench_baseline(unsigned long iterations);
+	extern unsigned long ecall_bench_run(unsigned long batches);
+	extern unsigned long ecall_bench_baseline(unsigned long batches);
 	extern void ecall_bench_stop(void);
 
 	static const char digits[] = "0123456789";
@@ -71,8 +73,8 @@ void test_main(unsigned long a0, unsigned long a1)
 	(void)a0;
 	(void)a1;
 
-	baseline = ecall_bench_baseline(iterations);
-	total = ecall_bench_run(iterations);
+	baseline = ecall_bench_baseline(batches);
+	total = ecall_bench_run(batches);
 	ecall_bench_stop();
 
 	net = total > baseline ? total - baseline : 0;
@@ -96,11 +98,15 @@ void test_main(unsigned long a0, unsigned long a1)
 	} while (0)
 
 	APPEND_LITERAL("\nS-mode ECALL latency benchmark\n");
-	APPEND_LITERAL("iterations      : ");
+	APPEND_LITERAL("batches         : ");
+	APPEND_ULONG(batches);
+	APPEND_LITERAL("\necalls/batch    : ");
+	APPEND_ULONG(batch_size);
+	APPEND_LITERAL("\niterations      : ");
 	APPEND_ULONG(iterations);
 	APPEND_LITERAL("\nmeasured cycles : ");
 	APPEND_ULONG(total);
-	APPEND_LITERAL("\nloop cycles     : ");
+	APPEND_LITERAL("\nnop cycles      : ");
 	APPEND_ULONG(baseline);
 	APPEND_LITERAL("\nnet cycles      : ");
 	APPEND_ULONG(net);
