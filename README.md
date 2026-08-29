@@ -132,8 +132,11 @@ CROSS_COMPILE=riscv64-unknown-linux-gnu- \
   ./scripts/ecall-bench.sh k3-build
 ```
 
-如果 K3 启动流程要求镜像链接到指定的 OpenSBI 地址，可以传入对应的
-板级地址，并可选择自定义输出目录：
+参考原有 `k3_defconfig` 和 `scripts/build.sh`，标准 K3 构建通常不需要
+指定 `FW_TEXT_START`：OpenSBI 会根据实际加载位置完成运行时重定位。
+`--fw-text-start` 主要用于让 ELF 调试符号与已知加载地址一致，或适配
+要求固定 ELF 链接地址的特殊加载流程。需要时可以传入对应地址，并可
+选择自定义输出目录：
 
 ```sh
 CROSS_COMPILE=riscv64-unknown-linux-gnu- \
@@ -142,9 +145,10 @@ CROSS_COMPILE=riscv64-unknown-linux-gnu- \
   --output build/ecall-bench/k3-0x80000000
 ```
 
-上面的 `0x80000000` 仅用于展示命令格式，实际测试时应使用 K3 启动
-流程要求的地址。未指定 `FW_TEXT_START` 时，链接基地址为零。OpenSBI
-会在早期启动过程中计算运行时加载偏移，并应用相对重定位。
+上面的 `0x80000000` 仅用于展示命令格式，并不是 K3 的默认固定地址。
+实际使用时必须换成当前 K3 启动流程的真实加载地址。未指定
+`FW_TEXT_START` 时，链接基地址为零；OpenSBI 会在早期启动过程中计算
+运行时加载偏移，并应用相对重定位。
 
 默认生成的镜像位于：
 
