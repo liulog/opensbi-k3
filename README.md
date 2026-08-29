@@ -1,81 +1,76 @@
-# OpenSBI S-mode ECALL latency benchmark
+# OpenSBI S-mode ECALL 延迟基准测试
 
-This test measures the cost of entering M-mode with `ecall` and returning to
-S-mode with `mret`, without using OpenSBI's normal trap context save and C
-ECALL dispatch path.
+本测试用于测量通过 `ecall` 从 S-mode 进入 M-mode，再通过 `mret` 返回
+S-mode 的开销。测试不经过 OpenSBI 常规的陷阱上下文保存流程和 C 语言
+ECALL 分发路径。
 
-The upstream OpenSBI project introduction has been preserved as
-[`README.orig.md`](README.orig.md). This `README.md` documents the benchmark
-changes carried by the `k3-ecall-latency-bench` branch.
+上游 OpenSBI 的项目说明已原样保存在
+[`README.orig.md`](README.orig.md)。本 `README.md` 专门说明
+`k3-ecall-latency-bench` 分支中的基准测试修改。
 
-## Summary
+## 主要特点
 
-- The normal OpenSBI trap entry and SBI ECALL dispatcher are unchanged.
-- All benchmark code is selected only by `CONFIG_SBI_ECALL_BENCH`.
-- M-mode temporarily enables and starts the cycle counter for S-mode, masks
-  M-mode interrupt sources, and installs a dedicated minimal trap vector.
-- S-mode reads `cycle` around 1,024 adjacent ECALL instructions. There is no
-  loop bookkeeping, branch, or other S-mode instruction between those ECALLs.
-- The same source builds for QEMU `virt` and SpacemiT K3 using separate
-  defconfigs. Normal builds contain no benchmark object or runtime hook.
+- OpenSBI 的常规陷阱入口和 SBI ECALL 分发器保持不变。
+- 所有基准测试代码仅在启用 `CONFIG_SBI_ECALL_BENCH` 时参与编译。
+- M-mode 临时允许 S-mode 读取并使用 cycle 计数器，屏蔽 M-mode 中断源，
+  并安装专用的最小陷阱向量。
+- S-mode 在两次 `cycle` 读取之间连续执行 1,024 条 ECALL 指令。相邻
+  ECALL 之间没有循环控制、分支或其他 S-mode 指令。
+- 同一套代码通过不同的 defconfig 支持 QEMU `virt` 和 SpacemiT K3。
+  普通配置不会包含基准测试目标文件或运行时挂钩。
 
-## Changes from k3-br-v1.0.y
+## 相对 k3-br-v1.0.y 的修改
 
-The original top-level documentation is kept as `README.orig.md`, and the
-normal OpenSBI trap entry is unchanged. The benchmark is implemented by these
-isolated additions:
+原始顶层文档保存在 `README.orig.md`，OpenSBI 的常规陷阱入口保持不变。
+基准测试通过以下相互隔离的修改实现：
 
-- `CONFIG_SBI_ECALL_BENCH` controls all benchmark-only M-mode and S-mode code.
-- `lib/sbi/sbi_ecall_bench.S` provides the temporary, minimal M-mode ECALL
-  return path and restores the original machine state when the test stops.
-- `firmware/payloads/ecall_bench.S` contains the S-mode measurement block.
-- `ecall_bench_defconfig` and `k3_ecall_bench_defconfig` select the QEMU and K3
-  test images respectively; the original `k3_defconfig` is unchanged.
-- `scripts/ecall-bench.sh` provides reproducible out-of-tree builds and an
-  optional QEMU run command.
+- `CONFIG_SBI_ECALL_BENCH` 控制所有仅用于测试的 M-mode 和 S-mode 代码。
+- `lib/sbi/sbi_ecall_bench.S` 提供临时、精简的 M-mode ECALL 返回路径，
+  并在测试结束时恢复原有机器状态。
+- `firmware/payloads/ecall_bench.S` 包含 S-mode 测量代码块。
+- `ecall_bench_defconfig` 和 `k3_ecall_bench_defconfig` 分别选择 QEMU 与
+  K3 测试镜像；原有的 `k3_defconfig` 不做修改。
+- `scripts/ecall-bench.sh` 提供可重复的目录外编译流程，并可选择直接
+  启动 QEMU。
 
-Two existing K3-specific CSR/cache references are guarded by
-`CONFIG_PLATFORM_SPACEMIT_K3`, allowing the same benchmark payload to compile
-for generic QEMU without changing K3 behavior.
+两个原有的 K3 专用 CSR/缓存引用由 `CONFIG_PLATFORM_SPACEMIT_K3`
+保护，因此同一个基准测试 payload 可以为通用 QEMU 编译，同时不会改变
+K3 原有行为。
 
-It is intentionally a test-only configuration:
+这是一个有意与正常固件隔离的测试配置：
 
-- OpenSBI completes cold-boot initialization and configures PMP normally.
-- Immediately before entering the built-in S-mode payload, OpenSBI saves the
-  normal `mtvec`, disables M-mode interrupt sources, enables S-mode access to
-  the `cycle` counter, clears `mcountinhibit.CY`, and installs a temporary
-  minimal trap vector.
-- The S-mode payload executes one warm-up pass through the exact measured code
-  block, then measures 800 batches of 1,024 adjacent ECALL round trips.
-- Each measured batch is a branch-free 4 KiB instruction block containing
-  only consecutive ECALL instructions. Counter reads, accumulation, and the
-  outer-loop branch are outside the block.
-- A final, untimed ECALL restores the original `mtvec`, `mie`, and
-  counter state. The payload then prints the result through the normal SBI
-  debug console extension.
+- OpenSBI 正常完成冷启动初始化和 PMP 配置。
+- 在进入内置 S-mode payload 之前，OpenSBI 保存原有的 `mtvec`，关闭
+  M-mode 中断源，允许 S-mode 访问 `cycle` 计数器，清除
+  `mcountinhibit.CY`，然后安装临时的最小陷阱向量。
+- S-mode payload 首先在完全相同的被测代码块上预热一次，随后测量
+  800 批、每批 1,024 次连续的 ECALL 往返。
+- 每个被测批次都是一个无分支的 4 KiB 指令块，其中只包含连续 ECALL
+  指令。计数器读取、结果累加和外层循环分支都位于该代码块之外。
+- 最后一次不计时的 ECALL 恢复原有 `mtvec`、`mie` 和计数器状态。
+  随后 payload 通过常规 SBI 调试控制台扩展输出结果。
 
-The M-mode fast path contains only a branch on `a6`, `mepc` read/update,
-zeroing of `a0` and `a1`, and `mret`. It deliberately assumes a controlled,
-single-hart payload with no faults. Do not enable this option when booting a
-normal payload or operating system.
+M-mode 快速路径只包含一次针对 `a6` 的分支、`mepc` 的读取和更新、
+将 `a0` 与 `a1` 清零，以及 `mret`。该路径有意假设测试运行在受控的
+单 hart payload 中，并且不会发生故障。启动普通 payload 或操作系统时
+不要启用此选项。
 
-The `cycles/ecall` result is the complete measured ECALL round-trip average.
-The S-mode `rdcycle` instructions and ordering fences are only the batch
-boundaries and are amortized over 1,024 adjacent ECALLs.
+输出的 `cycles/ecall` 是完整 ECALL 往返开销的平均值。S-mode 中的
+`rdcycle` 指令和排序屏障只位于每批测试的边界，其开销由 1,024 次连续
+ECALL 共同摊销。
 
-## M-mode handling path
+## M-mode 处理路径
 
-Immediately before entering S-mode, `sbi_ecall_bench_prepare` saves `mtvec`,
-`mie`, `mcounteren`, and `mcountinhibit`. It then:
+进入 S-mode 之前，`sbi_ecall_bench_prepare` 保存 `mtvec`、`mie`、
+`mcounteren` 和 `mcountinhibit`，随后执行以下准备工作：
 
-- writes zero to `mie`, preventing an M-mode interrupt from entering the
-  benchmark trap vector;
-- sets `mcounteren.CY`, permitting S-mode to execute `rdcycle`;
-- clears `mcountinhibit.CY`, ensuring the cycle counter is running; and
-- points `mtvec` at `sbi_ecall_bench_trap`.
+- 向 `mie` 写入零，避免 M-mode 中断进入测试专用陷阱向量；
+- 设置 `mcounteren.CY`，允许 S-mode 执行 `rdcycle`；
+- 清除 `mcountinhibit.CY`，确保 cycle 计数器正在运行；
+- 将 `mtvec` 指向 `sbi_ecall_bench_trap`。
 
-Every measured S-mode ECALL enters the following M-mode hot path from
-`lib/sbi/sbi_ecall_bench.S`:
+每一条被测 S-mode ECALL 都会进入
+`lib/sbi/sbi_ecall_bench.S` 中的以下 M-mode 热路径：
 
 ```asm
 sbi_ecall_bench_trap:
@@ -88,58 +83,57 @@ sbi_ecall_bench_trap:
 	mret
 ```
 
-These are the only seven M-mode instructions on the measured path. The first
-branch is not taken for benchmark ECALLs: S-mode keeps `a6` at zero. The next
-three instructions advance `mepc` over the 4-byte ECALL instruction, `a0` and
-`a1` are cleared as a minimal successful return value, and `mret` returns to
-the immediately following S-mode ECALL. No stack, general register context,
-C dispatcher, extension lookup, or normal SBI handler is involved.
+被测路径中只有以上 7 条 M-mode 指令。对于用于测量的 ECALL，S-mode
+始终保持 `a6` 为零，因此第一条分支不会跳转。接下来的 3 条指令将
+`mepc` 前移 4 字节，从而跳过当前 ECALL 指令；随后将 `a0` 和 `a1`
+清零，作为最小的成功返回值；最后由 `mret` 返回紧邻的下一条 S-mode
+ECALL。整个过程不使用栈，不保存通用寄存器上下文，也不经过 C 分发器、
+扩展查找或常规 SBI 处理函数。
 
-After all batches have been measured, S-mode issues one untimed stop ECALL
-with nonzero `a6`. The stop path restores the saved `mtvec`, `mcounteren`,
-`mcountinhibit`, and `mie`, advances `mepc`, and returns to S-mode. This longer
-restore path is outside the cycle interval.
+所有批次测量结束后，S-mode 使用非零 `a6` 发出一次不计时的停止
+ECALL。停止路径恢复此前保存的 `mtvec`、`mcounteren`、
+`mcountinhibit` 和 `mie`，更新 `mepc` 后返回 S-mode。该恢复路径较长，
+但完全位于 cycle 测量区间之外。
 
-## Build with the script
+## 使用脚本编译
 
-Run the following commands from the repository root. First, inspect all
-available commands and options:
+以下命令均在仓库根目录执行。首先可以查看脚本支持的命令和参数：
 
 ```sh
 ./scripts/ecall-bench.sh --help
 ```
 
-Build the QEMU image without starting QEMU:
+只编译 QEMU 镜像，不启动 QEMU：
 
 ```sh
 CROSS_COMPILE=riscv64-unknown-linux-gnu- \
   ./scripts/ecall-bench.sh qemu-build
 ```
 
-Build and immediately run it on QEMU:
+编译并立即在 QEMU 中运行：
 
 ```sh
 CROSS_COMPILE=riscv64-unknown-linux-gnu- \
   ./scripts/ecall-bench.sh qemu
 ```
 
-If the compiler is not in `PATH`, use its full prefix. This repository was
-verified with:
+如果编译器不在 `PATH` 中，可以使用完整的工具链前缀。本仓库已经使用
+以下工具链完成验证：
 
 ```sh
 CROSS_COMPILE=/opt/spacemit-toolchain-linux-glibc-x86_64-v1.2.4/bin/riscv64-unknown-linux-gnu- \
   ./scripts/ecall-bench.sh qemu-build
 ```
 
-Build the K3 image into the default `build/ecall-bench/k3` directory:
+将 K3 镜像编译到默认的 `build/ecall-bench/k3` 目录：
 
 ```sh
 CROSS_COMPILE=riscv64-unknown-linux-gnu- \
   ./scripts/ecall-bench.sh k3-build
 ```
 
-If the K3 boot stage requires an image linked at a particular OpenSBI address,
-pass that board-specific address and, optionally, choose an output directory:
+如果 K3 启动流程要求镜像链接到指定的 OpenSBI 地址，可以传入对应的
+板级地址，并可选择自定义输出目录：
 
 ```sh
 CROSS_COMPILE=riscv64-unknown-linux-gnu- \
@@ -148,25 +142,23 @@ CROSS_COMPILE=riscv64-unknown-linux-gnu- \
   --output build/ecall-bench/k3-0x80000000
 ```
 
-`0x80000000` above is only a command-line example; use the address required by
-the K3 boot flow being tested. Leaving `FW_TEXT_START` unset uses zero as the
-link-time base. OpenSBI computes the runtime load offset and applies its
-relative relocations during early boot.
+上面的 `0x80000000` 仅用于展示命令格式，实际测试时应使用 K3 启动
+流程要求的地址。未指定 `FW_TEXT_START` 时，链接基地址为零。OpenSBI
+会在早期启动过程中计算运行时加载偏移，并应用相对重定位。
 
-The default output images are:
+默认生成的镜像位于：
 
 ```text
 build/ecall-bench/qemu/platform/generic/firmware/fw_payload.bin
 build/ecall-bench/k3/platform/generic/firmware/fw_payload.bin
 ```
 
-The script creates the output directory before invoking `make`, so generated
-Kconfig paths stay below that directory instead of accidentally resolving to
-`/platform`.
+脚本会在调用 `make` 前创建输出目录，因此生成的 Kconfig 路径始终位于
+该目录下，不会意外解析成 `/platform`。
 
-## Build with make directly
+## 直接使用 make 编译
 
-For RV64 QEMU `virt`:
+编译 RV64 QEMU `virt` 镜像：
 
 ```sh
 make PLATFORM=generic \
@@ -174,7 +166,7 @@ make PLATFORM=generic \
   CROSS_COMPILE=riscv64-linux-gnu-
 ```
 
-For the SpacemiT K3 target, use the corresponding test-only configuration:
+编译 SpacemiT K3 测试镜像：
 
 ```sh
 make PLATFORM=generic \
@@ -182,43 +174,41 @@ make PLATFORM=generic \
   CROSS_COMPILE=riscv64-linux-gnu-
 ```
 
-Without an explicit `O=...`, the image is generated at:
+未显式指定 `O=...` 时，镜像生成在：
 
 ```text
 build/platform/generic/firmware/fw_payload.bin
 ```
 
-## Link and load addresses
+## 链接与加载地址
 
-There is no standalone linker script specifically for either
-`ecall_bench.S` file:
+两个 `ecall_bench.S` 文件都没有各自独立的链接脚本：
 
-- `lib/sbi/sbi_ecall_bench.S` is part of OpenSBI and is linked by
-  `firmware/fw_payload.elf.ldS`. It follows the normal OpenSBI PIE relocation
-  path when the runtime address differs from `FW_TEXT_START`.
-- `firmware/payloads/ecall_bench.S` is part of the built-in S-mode test
-  payload and is linked by `firmware/payloads/test.elf.ldS` at
-  `FW_TEXT_START + FW_PAYLOAD_OFFSET`.
+- `lib/sbi/sbi_ecall_bench.S` 是 OpenSBI 的一部分，由
+  `firmware/fw_payload.elf.ldS` 完成链接。当运行地址与
+  `FW_TEXT_START` 不同时，它遵循 OpenSBI 常规的 PIE 重定位流程。
+- `firmware/payloads/ecall_bench.S` 是内置 S-mode 测试 payload 的一部分，
+  由 `firmware/payloads/test.elf.ldS` 链接到
+  `FW_TEXT_START + FW_PAYLOAD_OFFSET`。
 
-The generic RV64 platform uses a payload offset of `0x200000`. The payload is
-embedded in `fw_payload.bin`, and `fw_next_addr()` obtains its runtime address
-with a PC-relative symbol reference. The payload is compiled with the `medany`
-code model and contains no dynamic relocations, so QEMU and a board may load
-the complete `fw_payload.bin` at different base addresses. They must preserve
-the layout of the complete image; do not extract and independently move only
-`test.bin` without also providing a matching next-stage entry address.
+通用 RV64 平台的 payload 偏移为 `0x200000`。payload 被嵌入
+`fw_payload.bin`，`fw_next_addr()` 通过 PC 相对符号引用取得其运行时
+地址。payload 使用 `medany` 代码模型编译，并且不包含动态重定位，因此
+QEMU 和硬件板可以将完整的 `fw_payload.bin` 加载到不同基地址。加载时
+必须保持完整镜像内部布局；除非同时提供匹配的下一阶段入口地址，否则
+不要只提取并单独移动 `test.bin`。
 
-## Run on QEMU
+## 在 QEMU 上运行
 
-Use one hart so only the cold-boot hart enters the benchmark payload:
+使用单 hart，保证只有冷启动 hart 进入基准测试 payload：
 
 ```sh
 qemu-system-riscv64 -M virt -m 256M -smp 1 -nographic \
   -bios build/platform/generic/firmware/fw_payload.bin
 ```
 
-The payload prints the measured cycles and cycles per ECALL. It then waits in
-`wfi`; terminate QEMU manually.
+payload 会输出测得的 cycle 总数和每次 ECALL 的平均 cycle 数，随后进入
+`wfi` 等待；此时需要手动退出 QEMU。
 
-QEMU cycle counts are useful for functional and instruction-path validation,
-but hardware latency must be measured on the target K3 board.
+QEMU 的 cycle 数适合用于功能验证和指令路径确认；实际硬件延迟应以
+目标 K3 板上的测量结果为准。
