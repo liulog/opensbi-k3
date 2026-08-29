@@ -96,6 +96,8 @@ k3-build)
 esac
 
 output_dir="${output_dir:-$default_output}"
+mkdir -p "$output_dir"
+
 make_args=(
 	-C "$source_dir"
 	-j "$jobs"
