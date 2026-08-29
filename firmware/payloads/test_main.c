@@ -8,7 +8,9 @@
  */
 
 #include <sbi/sbi_ecall_interface.h>
+#ifdef CONFIG_SBI_ECALL_BENCH
 #include <sbi/sbi_ecall_bench.h>
+#endif
 #include <sbi/sbi_string.h>
 
 struct sbiret {
@@ -58,13 +60,11 @@ void test_main(unsigned long a0, unsigned long a1)
 	const unsigned long batches = SBI_ECALL_BENCH_BATCHES;
 	const unsigned long batch_size = SBI_ECALL_BENCH_BATCH_SIZE;
 	const unsigned long iterations = batches * batch_size;
-	unsigned long total, baseline, net;
-	unsigned long average, remainder, net_average, net_remainder;
-	char output[384];
+	unsigned long total, average, remainder;
+	char output[256];
 	char *p = output;
 
 	extern unsigned long ecall_bench_run(unsigned long batches);
-	extern unsigned long ecall_bench_baseline(unsigned long batches);
 	extern void ecall_bench_stop(void);
 
 	static const char digits[] = "0123456789";
@@ -74,15 +74,11 @@ void test_main(unsigned long a0, unsigned long a1)
 	(void)a0;
 	(void)a1;
 
-	baseline = ecall_bench_baseline(batches);
 	total = ecall_bench_run(batches);
 	ecall_bench_stop();
 
-	net = total > baseline ? total - baseline : 0;
 	average = total / iterations;
 	remainder = total % iterations;
-	net_average = net / iterations;
-	net_remainder = net % iterations;
 
 #define APPEND_LITERAL(str) do { \
 		const char *__s = (str); \
@@ -109,10 +105,6 @@ void test_main(unsigned long a0, unsigned long a1)
 	APPEND_ULONG(iterations);
 	APPEND_LITERAL("\nmeasured cycles : ");
 	APPEND_ULONG(total);
-	APPEND_LITERAL("\nnop cycles      : ");
-	APPEND_ULONG(baseline);
-	APPEND_LITERAL("\nnet cycles      : ");
-	APPEND_ULONG(net);
 	APPEND_LITERAL("\ncycles/ecall    : ");
 	APPEND_ULONG(average);
 	APPEND_LITERAL(".");
@@ -120,13 +112,6 @@ void test_main(unsigned long a0, unsigned long a1)
 	*p++ = digits[(remainder / 100) % 10];
 	*p++ = digits[(remainder / 10) % 10];
 	*p++ = digits[remainder % 10];
-	APPEND_LITERAL("\nnet cycles/ecall: ");
-	APPEND_ULONG(net_average);
-	APPEND_LITERAL(".");
-	net_remainder = (net_remainder * 1000) / iterations;
-	*p++ = digits[(net_remainder / 100) % 10];
-	*p++ = digits[(net_remainder / 10) % 10];
-	*p++ = digits[net_remainder % 10];
 	APPEND_LITERAL("\n");
 	*p = '\0';
 

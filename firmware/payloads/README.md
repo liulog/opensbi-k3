@@ -4,33 +4,41 @@ This test measures the cost of entering M-mode with `ecall` and returning to
 S-mode with `mret`, without using OpenSBI's normal trap context save and C
 ECALL dispatch path.
 
+## Summary
+
+- The normal OpenSBI trap entry and SBI ECALL dispatcher are unchanged.
+- All benchmark code is selected only by `CONFIG_SBI_ECALL_BENCH`.
+- M-mode temporarily enables and starts the cycle counter for S-mode, masks
+  M-mode interrupt sources, and installs a dedicated minimal trap vector.
+- S-mode reads `cycle` around 1,024 adjacent ECALL instructions. There is no
+  loop bookkeeping, branch, or other S-mode instruction between those ECALLs.
+- The same source builds for QEMU `virt` and SpacemiT K3 using separate
+  defconfigs. Normal builds contain no benchmark object or runtime hook.
+
 It is intentionally a test-only configuration:
 
 - OpenSBI completes cold-boot initialization and configures PMP normally.
 - Immediately before entering the built-in S-mode payload, OpenSBI saves the
   normal `mtvec`, disables M-mode interrupt sources, enables S-mode access to
-  the `cycle` counter, and installs a temporary minimal trap vector.
+  the `cycle` counter, clears `mcountinhibit.CY`, and installs a temporary
+  minimal trap vector.
 - The S-mode payload executes one warm-up pass through the exact measured code
   block, then measures 800 batches of 1,024 adjacent ECALL round trips.
 - Each measured batch is a branch-free 4 KiB instruction block containing
   only consecutive ECALL instructions. Counter reads, accumulation, and the
   outer-loop branch are outside the block.
-- A matching block of 1,024 non-compressed NOP instructions measures the
-  counter-boundary and S-mode instruction-stream baseline.
 - A final, untimed ECALL restores the original `mtvec`, `mie`, and
-  `mcounteren`. The payload then prints the result through the normal SBI debug
-  console extension.
+  counter state. The payload then prints the result through the normal SBI
+  debug console extension.
 
 The M-mode fast path contains only a branch on `a6`, `mepc` read/update,
 zeroing of `a0` and `a1`, and `mret`. It deliberately assumes a controlled,
 single-hart payload with no faults. Do not enable this option when booting a
 normal payload or operating system.
 
-The primary `cycles/ecall` result is the complete measured ECALL round-trip
-average. The S-mode `rdcycle` instructions are only the timing boundaries and
-are amortized over 1,024 adjacent ECALLs per batch. `net cycles/ecall` also
-subtracts the matching NOP block and therefore represents the ECALL cost above
-an ordinary 4-byte instruction stream; it is provided as a secondary value.
+The `cycles/ecall` result is the complete measured ECALL round-trip average.
+The S-mode `rdcycle` instructions and ordering fences are only the batch
+boundaries and are amortized over 1,024 adjacent ECALLs.
 
 ## Build
 
@@ -102,8 +110,8 @@ qemu-system-riscv64 -M virt -m 256M -smp 1 -nographic \
   -bios build/platform/generic/firmware/fw_payload.bin
 ```
 
-The payload prints the measured cycles, matching loop overhead, net cycles,
-and the net cycles per ECALL. It then waits in `wfi`; terminate QEMU manually.
+The payload prints the measured cycles and cycles per ECALL. It then waits in
+`wfi`; terminate QEMU manually.
 
 QEMU cycle counts are useful for functional and instruction-path validation,
 but hardware latency must be measured on the target K3 board.

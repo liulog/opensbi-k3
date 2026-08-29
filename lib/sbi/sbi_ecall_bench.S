@@ -23,6 +23,13 @@ sbi_ecall_bench_prepare:
 	ori	t0, t0, 1
 	csrw	CSR_MCOUNTEREN, t0
 
+	/* Ensure the cycle counter is running while the benchmark executes. */
+	csrr	t0, CSR_MCOUNTINHIBIT
+	lla	t1, .Lsaved_mcountinhibit
+	REG_S	t0, 0(t1)
+	andi	t0, t0, -2
+	csrw	CSR_MCOUNTINHIBIT, t0
+
 	lla	t0, sbi_ecall_bench_trap
 	csrw	CSR_MTVEC, t0
 	ret
@@ -50,6 +57,10 @@ sbi_ecall_bench_trap:
 	REG_L	a0, 0(a0)
 	csrw	CSR_MCOUNTEREN, a0
 
+	lla	a0, .Lsaved_mcountinhibit
+	REG_L	a0, 0(a0)
+	csrw	CSR_MCOUNTINHIBIT, a0
+
 	lla	a0, .Lsaved_mie
 	REG_L	a0, 0(a0)
 	csrw	CSR_MIE, a0
@@ -68,4 +79,6 @@ sbi_ecall_bench_trap:
 .Lsaved_mie:
 	RISCV_PTR 0
 .Lsaved_mcounteren:
+	RISCV_PTR 0
+.Lsaved_mcountinhibit:
 	RISCV_PTR 0

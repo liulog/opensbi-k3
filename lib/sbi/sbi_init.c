@@ -14,7 +14,9 @@
 #include <sbi/sbi_cppc.h>
 #include <sbi/sbi_domain.h>
 #include <sbi/sbi_ecall.h>
+#ifdef CONFIG_SBI_ECALL_BENCH
 #include <sbi/sbi_ecall_bench.h>
+#endif
 #include <sbi/sbi_fwft.h>
 #include <sbi/sbi_hart.h>
 #include <sbi/sbi_hartmask.h>
