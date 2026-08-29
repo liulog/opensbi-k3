@@ -58,8 +58,9 @@ void test_main(unsigned long a0, unsigned long a1)
 	const unsigned long batches = SBI_ECALL_BENCH_BATCHES;
 	const unsigned long batch_size = SBI_ECALL_BENCH_BATCH_SIZE;
 	const unsigned long iterations = batches * batch_size;
-	unsigned long total, baseline, net, average, remainder;
-	char output[256];
+	unsigned long total, baseline, net;
+	unsigned long average, remainder, net_average, net_remainder;
+	char output[384];
 	char *p = output;
 
 	extern unsigned long ecall_bench_run(unsigned long batches);
@@ -78,8 +79,10 @@ void test_main(unsigned long a0, unsigned long a1)
 	ecall_bench_stop();
 
 	net = total > baseline ? total - baseline : 0;
-	average = net / iterations;
-	remainder = net % iterations;
+	average = total / iterations;
+	remainder = total % iterations;
+	net_average = net / iterations;
+	net_remainder = net % iterations;
 
 #define APPEND_LITERAL(str) do { \
 		const char *__s = (str); \
@@ -117,6 +120,13 @@ void test_main(unsigned long a0, unsigned long a1)
 	*p++ = digits[(remainder / 100) % 10];
 	*p++ = digits[(remainder / 10) % 10];
 	*p++ = digits[remainder % 10];
+	APPEND_LITERAL("\nnet cycles/ecall: ");
+	APPEND_ULONG(net_average);
+	APPEND_LITERAL(".");
+	net_remainder = (net_remainder * 1000) / iterations;
+	*p++ = digits[(net_remainder / 100) % 10];
+	*p++ = digits[(net_remainder / 10) % 10];
+	*p++ = digits[net_remainder % 10];
 	APPEND_LITERAL("\n");
 	*p = '\0';
 

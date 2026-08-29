@@ -26,6 +26,12 @@ zeroing of `a0` and `a1`, and `mret`. It deliberately assumes a controlled,
 single-hart payload with no faults. Do not enable this option when booting a
 normal payload or operating system.
 
+The primary `cycles/ecall` result is the complete measured ECALL round-trip
+average. The S-mode `rdcycle` instructions are only the timing boundaries and
+are amortized over 1,024 adjacent ECALLs per batch. `net cycles/ecall` also
+subtracts the matching NOP block and therefore represents the ECALL cost above
+an ordinary 4-byte instruction stream; it is provided as a secondary value.
+
 ## Build
 
 The convenience script builds both variants and can run the QEMU image:
