@@ -15,6 +15,24 @@ ECALL dispatch path.
 - The same source builds for QEMU `virt` and SpacemiT K3 using separate
   defconfigs. Normal builds contain no benchmark object or runtime hook.
 
+## Changes from k3-br-v1.0.y
+
+The original top-level `README.md` and normal OpenSBI trap entry are kept
+unchanged. The benchmark is implemented by these isolated additions:
+
+- `CONFIG_SBI_ECALL_BENCH` controls all benchmark-only M-mode and S-mode code.
+- `lib/sbi/sbi_ecall_bench.S` provides the temporary, minimal M-mode ECALL
+  return path and restores the original machine state when the test stops.
+- `firmware/payloads/ecall_bench.S` contains the S-mode measurement block.
+- `ecall_bench_defconfig` and `k3_ecall_bench_defconfig` select the QEMU and K3
+  test images respectively; the original `k3_defconfig` is unchanged.
+- `scripts/ecall-bench.sh` provides reproducible out-of-tree builds and an
+  optional QEMU run command.
+
+Two existing K3-specific CSR/cache references are guarded by
+`CONFIG_PLATFORM_SPACEMIT_K3`, allowing the same benchmark payload to compile
+for generic QEMU without changing K3 behavior.
+
 It is intentionally a test-only configuration:
 
 - OpenSBI completes cold-boot initialization and configures PMP normally.
@@ -40,24 +58,71 @@ The `cycles/ecall` result is the complete measured ECALL round-trip average.
 The S-mode `rdcycle` instructions and ordering fences are only the batch
 boundaries and are amortized over 1,024 adjacent ECALLs.
 
-## Build
+## Build with the script
 
-The convenience script builds both variants and can run the QEMU image:
-
-```sh
-CROSS_COMPILE=riscv64-linux-gnu- scripts/ecall-bench.sh qemu
-CROSS_COMPILE=riscv64-linux-gnu- scripts/ecall-bench.sh k3-build
-```
-
-If a boot stage requires an ELF linked at the board's actual OpenSBI load
-address, pass it explicitly. For example:
+Run the following commands from the repository root. First, inspect all
+available commands and options:
 
 ```sh
-scripts/ecall-bench.sh k3-build --fw-text-start 0x80000000
+./scripts/ecall-bench.sh --help
 ```
 
-Leaving `FW_TEXT_START` unset uses zero as the link-time base. OpenSBI computes
-the runtime load offset and applies its relative relocations during early boot.
+Build the QEMU image without starting QEMU:
+
+```sh
+CROSS_COMPILE=riscv64-unknown-linux-gnu- \
+  ./scripts/ecall-bench.sh qemu-build
+```
+
+Build and immediately run it on QEMU:
+
+```sh
+CROSS_COMPILE=riscv64-unknown-linux-gnu- \
+  ./scripts/ecall-bench.sh qemu
+```
+
+If the compiler is not in `PATH`, use its full prefix. This repository was
+verified with:
+
+```sh
+CROSS_COMPILE=/opt/spacemit-toolchain-linux-glibc-x86_64-v1.2.4/bin/riscv64-unknown-linux-gnu- \
+  ./scripts/ecall-bench.sh qemu-build
+```
+
+Build the K3 image into the default `build/ecall-bench/k3` directory:
+
+```sh
+CROSS_COMPILE=riscv64-unknown-linux-gnu- \
+  ./scripts/ecall-bench.sh k3-build
+```
+
+If the K3 boot stage requires an image linked at a particular OpenSBI address,
+pass that board-specific address and, optionally, choose an output directory:
+
+```sh
+CROSS_COMPILE=riscv64-unknown-linux-gnu- \
+  ./scripts/ecall-bench.sh k3-build \
+  --fw-text-start 0x80000000 \
+  --output build/ecall-bench/k3-0x80000000
+```
+
+`0x80000000` above is only a command-line example; use the address required by
+the K3 boot flow being tested. Leaving `FW_TEXT_START` unset uses zero as the
+link-time base. OpenSBI computes the runtime load offset and applies its
+relative relocations during early boot.
+
+The default output images are:
+
+```text
+build/ecall-bench/qemu/platform/generic/firmware/fw_payload.bin
+build/ecall-bench/k3/platform/generic/firmware/fw_payload.bin
+```
+
+The script creates the output directory before invoking `make`, so generated
+Kconfig paths stay below that directory instead of accidentally resolving to
+`/platform`.
+
+## Build with make directly
 
 For RV64 QEMU `virt`:
 
@@ -75,7 +140,7 @@ make PLATFORM=generic \
   CROSS_COMPILE=riscv64-linux-gnu-
 ```
 
-The image is generated at:
+Without an explicit `O=...`, the image is generated at:
 
 ```text
 build/platform/generic/firmware/fw_payload.bin
