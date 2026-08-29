@@ -204,12 +204,18 @@ QEMU 和硬件板可以将完整的 `fw_payload.bin` 加载到不同基地址。
 
 ## 在 QEMU 上运行
 
-使用单 hart，保证只有冷启动 hart 进入基准测试 payload：
+推荐使用单 hart，以减少 QEMU 虚拟 CPU 调度等额外因素带来的测量噪声：
 
 ```sh
 qemu-system-riscv64 -M virt -m 256M -smp 1 -nographic \
   -bios build/platform/generic/firmware/fw_payload.bin
 ```
+
+`-smp 1` 不是功能上的强制要求。使用多个虚拟 hart 时，只有 coldboot
+hart 会安装测试专用 `mtvec` 并执行基准测试，其他 hart 停留在 OpenSBI
+的 HSM/`wfi` 等待流程；S-mode payload 自身也通过原子 hart lottery 保证
+只有一个 hart 调用 `test_main()`。不过为了提高结果的可重复性，延迟测量
+仍建议使用 `-smp 1`。
 
 payload 会输出测得的 cycle 总数和每次 ECALL 的平均 cycle 数，随后进入
 `wfi` 等待；此时需要手动退出 QEMU。
