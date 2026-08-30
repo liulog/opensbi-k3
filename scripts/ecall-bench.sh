@@ -35,6 +35,7 @@ Options:
 
 Environment overrides:
   CROSS_COMPILE, QEMU, FW_TEXT_START, JOBS
+  DEBUG is intentionally ignored; benchmark builds use upstream release -O2
 EOF
 }
 
@@ -102,6 +103,9 @@ make_args=(
 	-C "$source_dir"
 	-j "$jobs"
 	"O=$output_dir"
+	# This OpenSBI version selects its release -O2 flags only when DEBUG is
+	# empty.  Do not inherit a host value such as DEBUG=release as -O0.
+	"DEBUG="
 	PLATFORM=generic
 	"PLATFORM_DEFCONFIG=$defconfig"
 	"CROSS_COMPILE=$cross_compile"
@@ -112,6 +116,7 @@ if [[ -n "$fw_text_start" ]]; then
 fi
 
 echo "Building $defconfig in $output_dir"
+echo "Optimization: OpenSBI release default (-O2, DEBUG empty)"
 if [[ -n "$fw_text_start" ]]; then
 	echo "FW_TEXT_START=$fw_text_start"
 else

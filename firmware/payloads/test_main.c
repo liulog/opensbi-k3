@@ -14,7 +14,7 @@
 #include <sbi/sbi_string.h>
 
 struct sbiret {
-	unsigned long error;
+	long error;
 	unsigned long value;
 };
 

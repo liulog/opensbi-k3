@@ -1,12 +1,13 @@
 # OpenSBI S-mode ECALL 延迟基准测试
 
 本测试用于测量通过 `ecall` 从 S-mode 进入 M-mode，再通过 `mret` 返回
-S-mode 的开销。测试不经过 OpenSBI 常规的陷阱上下文保存流程和 C 语言
-ECALL 分发路径。
+S-mode 的开销。它依次测量专用 minimal mtvec、原陷阱入口早返回、完整
+`get_spec_version` 和不支持扩展四条路径。只有 minimal mtvec 不经过
+OpenSBI 常规的陷阱上下文保存流程和 C 语言 ECALL 分发路径。
 
 上游 OpenSBI 的项目说明已原样保存在
 [`README.orig.md`](README.orig.md)。本 `README.md` 专门说明
-`k3-ecall-latency-bench` 分支中的基准测试修改。
+`k3-br-v1.0.0-ecall-bench` 分支中的基准测试修改。
 
 ## 主要特点
 
@@ -21,7 +22,7 @@ ECALL 分发路径。
 - 同一套代码通过不同的 defconfig 支持 QEMU `virt` 和 SpacemiT K3。
   普通配置不会包含基准测试目标文件或运行时挂钩。
 
-## 相对 k3-br-v1.0.y 的修改
+## 相对 k3-br-v1.0.0 的修改
 
 原始顶层文档保存在 `README.orig.md`，OpenSBI 的常规陷阱入口保持不变。
 基准测试通过以下相互隔离的修改实现：
@@ -52,7 +53,7 @@ K3 原有行为。
 - 最后一次不计时的 ECALL 恢复原有 `mtvec`、`mie` 和计数器状态。
   随后同一套连续 ECALL 再测两条路径：原 `_trap_handler` 在
   `mcause`/`a7` 处早返回，以及完整 `get_spec_version`。
-  最后通过常规 SBI 调试控制台扩展输出结果。
+  最后测量完整的不支持扩展查找，并通过常规 SBI 调试控制台扩展输出结果。
 
 M-mode 快速路径只包含一次针对 `a6` 的分支、`mepc` 的读取和更新、
 将 `a0` 与 `a1` 清零，以及 `mret`。该路径有意假设测试运行在受控的
@@ -62,6 +63,31 @@ M-mode 快速路径只包含一次针对 `a6` 的分支、`mepc` 的读取和更
 输出的 `cycles/ecall` 是完整 ECALL 往返开销的平均值。S-mode 中的
 `rdcycle` 指令和排序屏障只位于每批测试的边界，其开销由 1,024 次连续
 ECALL 共同摊销。
+
+## 优化等级与 K3 实测结果
+
+本版本 OpenSBI Makefile 只判断 `DEBUG` 是否为空：任何非空值都会选择
+`-O0`，因此宿主环境中的 `DEBUG=release` 实际上仍是无优化构建。两个
+benchmark 脚本均显式传入空的 `DEBUG`，固定使用上游 release 默认的
+`-O2`，不继承宿主环境中的同名变量。
+
+K3 上使用完全相同的测试代码分别测得：
+
+| 路径 | `-O0` cycles/ecall | `-O2` cycles/ecall | 改善 |
+| --- | ---: | ---: | ---: |
+| minimal mtvec | 62.029 | 62.029 | 0% |
+| original handler early a7 | 412.037 | 351.041 | 14.8% |
+| full SBI get_spec_version | 527.406 | 391.095 | 25.8% |
+| full SBI unsupported ext | 664.953 | 408.352 | 38.6% |
+
+纯汇编 minimal mtvec 路径在两种优化等级下完全相同，说明 cycle 计数、
+特权级切换和测试边界没有变化；路径包含的 C 分发代码越多，`-O2` 消除的
+栈访问、寄存器搬运和函数调用开销越明显。
+
+此前 Linux 内核模块测得的 `get_spec_version` 约为 430 cycles。该结果还
+可能包含内核导出的 `__sbi_ecall()` 包装函数、参数准备和函数调用开销；
+当前 payload 直接执行 1,024 条相邻 ECALL，因此 391.095 cycles 更接近
+OpenSBI 完整处理路径本身，两者不能直接视为同一测量口径。
 
 ## M-mode 处理路径
 
@@ -219,6 +245,12 @@ CROSS_COMPILE=/opt/spacemit-toolchain-linux-glibc-x86_64-v1.2.4/bin/riscv64-unkn
 解压/复制、裸区域替换以及替换内容校验。如果输出文件已经存在，脚本会拒绝覆盖。该脚本
 针对上述 Bianbu v4.0 镜像布局编写，并会检查 `0x700000` 和 `0x800000`
 处是否存在预期的 FIT 头，避免误改布局不兼容的镜像。
+
+脚本会显式向 OpenSBI Makefile 传入空的 `DEBUG`，使用上游 release 默认的
+`-O2` 优化等级。这样即使宿主环境中存在 `DEBUG=release` 等变量，也不会被
+这版 Makefile 误判为调试构建并退回 `-O0`。`CONFIG_ENABLE_LOGGING` 仍然
+保留，用于输出 OpenSBI banner 和启动诊断；这些输出发生在 ECALL 计时窗口
+之外。
 
 生成的原始镜像大小为 `9,139,408,896` 字节，因此应使用容量足够的
 SD 卡，通常需要 16 GB 或更大的卡。烧录前务必使用 `lsblk` 再次确认

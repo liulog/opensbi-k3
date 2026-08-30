@@ -59,8 +59,10 @@ fi
 mkdir -p "$build_dir" "$output_parent"
 
 echo "Building the K3 ECALL benchmark for the Bianbu SD layout"
+echo "Optimization: OpenSBI release default (-O2, DEBUG empty)"
 make -C "$source_dir" -j "$jobs" \
 	O="$build_dir" \
+	DEBUG= \
 	PLATFORM=generic \
 	PLATFORM_DEFCONFIG=k3_ecall_bench_defconfig \
 	CROSS_COMPILE="$cross_compile" \
