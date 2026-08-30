@@ -10,7 +10,9 @@ ECALL 分发路径。
 
 ## 主要特点
 
-- OpenSBI 的常规陷阱入口和 SBI ECALL 分发器保持不变。
+- OpenSBI 的常规陷阱入口保持不变；`CONFIG_SBI_ECALL_BENCH` 只在
+  `sbi_trap_handler` 判定 `mcause` 为 S-mode ecall 之后增加一次 `a7`
+  比对，匹配私有 EID 则走原返回路径，不进入扩展查找。
 - 所有基准测试代码仅在启用 `CONFIG_SBI_ECALL_BENCH` 时参与编译。
 - M-mode 临时允许 S-mode 读取并使用 cycle 计数器，屏蔽 M-mode 中断源，
   并安装专用的最小陷阱向量。
@@ -48,7 +50,9 @@ K3 原有行为。
 - 每个被测批次都是一个无分支的 4 KiB 指令块，其中只包含连续 ECALL
   指令。计数器读取、结果累加和外层循环分支都位于该代码块之外。
 - 最后一次不计时的 ECALL 恢复原有 `mtvec`、`mie` 和计数器状态。
-  随后 payload 通过常规 SBI 调试控制台扩展输出结果。
+  随后同一套连续 ECALL 再测两条路径：原 `_trap_handler` 在
+  `mcause`/`a7` 处早返回，以及完整 `get_spec_version`。
+  最后通过常规 SBI 调试控制台扩展输出结果。
 
 M-mode 快速路径只包含一次针对 `a6` 的分支、`mepc` 的读取和更新、
 将 `a0` 与 `a1` 清零，以及 `mret`。该路径有意假设测试运行在受控的
@@ -94,6 +98,13 @@ ECALL。整个过程不使用栈，不保存通用寄存器上下文，也不经
 ECALL。停止路径恢复此前保存的 `mtvec`、`mcounteren`、
 `mcountinhibit` 和 `mie`，更新 `mepc` 后返回 S-mode。该恢复路径较长，
 但完全位于 cycle 测量区间之外。
+
+恢复原 `mtvec` 之后，同一套连续 ECALL（`a7 = SBI_EXT_ECALL_BENCH`）
+再走一遍原始 `_trap_handler`：保存全部上下文、进入
+`sbi_trap_handler`，在 `mcause == SUPERVISOR_ECALL` 之后比对 `a7`，
+然后 `mepc += 4` 并沿原 restore/`mret` 返回。这条路径量的是「完整
+trap 进出 + mcause/a7 分发」，不含扩展表查找和 `get_spec_version`
+处理函数。第三条路径才是完整 SBI `get_spec_version`。
 
 ## 使用脚本编译
 
@@ -164,29 +175,36 @@ build/ecall-bench/k3/platform/generic/firmware/fw_payload.bin
 
 `scripts/ecall-bench-sdcard.sh` 可以基于官方 Bianbu K3 SD 卡镜像生成
 一份独立的 ECALL 测试镜像。脚本不会覆盖输入镜像，也不会修改其中的
-ESP、`bootfs`、`rootfs` 或 U-Boot，只替换 SD 卡裸区域中的 OpenSBI
-FIT 槽。
+ESP、`bootfs` 或 `rootfs`。脚本只替换分区之前的 OpenSBI FIT 和
+U-Boot 下一阶段 FIT 两个裸区域。
 
 当前确认的 `Bianbu-LXQt-K3-sdcard-v4.0-20260430170328.img` 布局为：
 
 | 起始位置 | 大小 | 内容 | 测试镜像处理方式 |
 | --- | ---: | --- | --- |
-| `0x700000` | 1 MiB | OpenSBI FIT | 替换为 ECALL 测试 FIT |
-| `0x800000` | 至分区起点 | U-Boot FIT 等早期启动内容 | 保持不变 |
+| `0x700000` | 1 MiB | OpenSBI FIT | 替换为 benchmark `fw_dynamic` FIT |
+| `0x800000` | 3 MiB 安全替换区 | U-Boot 下一阶段 FIT | 替换为独立 S-mode payload FIT |
 | 12 MiB | 256 MiB | ESP 分区 | 保持不变 |
 | 268 MiB | 256 MiB | `bootfs` 分区 | 保持不变 |
 | 524 MiB | 8 GiB | `rootfs` 分区 | 保持不变 |
 
 原镜像在 `0x700000` 存放的是加载到 `0x100000000` 的 `fw_dynamic`。
-测试镜像保持相同的 FIT 类型、加载地址和入口地址，但将其替换为包含
-S-mode 测试程序的 `fw_payload`。为了让完整固件放入 1 MiB 槽，SD 卡
-专用构建使用 `FW_PAYLOAD_OFFSET=0x80000`，所以 S-mode payload 的链接
-地址为 `0x100080000`。该偏移只用于 SD 卡封装，不改变普通 QEMU/K3
-构建的 2 MiB payload 偏移。
+测试镜像保持相同的 `fw_dynamic` 类型、加载地址和入口地址，仅加入
+ECALL benchmark 的 M-mode 准备与陷阱代码。`0x800000` 处仍使用 K3 SPL
+认识的 U-Boot FIT 结构，但其中的 `loadables` 被替换为最小 S-mode 测试
+程序；它使用原生 U-Boot 地址 `0x102000000` 作为加载地址和入口地址。
 
-由于测试 payload 已经内置在 OpenSBI FIT 中，OpenSBI 初始化完成后会
-直接进入基准测试，不再跳转到镜像中原有的 U-Boot 和 Linux。U-Boot、
-内核及根文件系统仍保留在镜像中，只是在本次测试启动流程中不会执行。
+脚本从原始 U-Boot FIT 中提取全部 13 份板型 DTB，并原样放入新的
+下一阶段 FIT，因此 SPL 仍可按产品名选择 `k3_deb1`、`k3_evb`、
+`k3_com260` 等配置。OpenSBI 从 SPL 提供的 `fw_dynamic_info` 获得
+`0x102000000`，完成初始化后进入测试 payload，不再启动 U-Boot 和
+Linux。当前 K3 benchmark 配置打开了 `CONFIG_ENABLE_LOGGING`，便于从
+串口确认 OpenSBI 已经启动；日志发生在测量之前，不计入 ECALL cycle。
+
+脚本不会改写 `0xB00000–0xBFFFFF`。官方 IMG 文件的主 GPT 表位于磁盘
+开头，但镜像写入更大 SD 卡并扩展 GPT 后，主分区表项可能被移动到
+`0xBFC000`，即第一个分区之前的最后 16 KiB。保留最后 1 MiB 可以同时
+兼容原始 IMG 和扩展后的物理卡布局，避免覆盖 GPT 元数据。
 
 从仓库根目录执行：
 
@@ -197,8 +215,8 @@ CROSS_COMPILE=/opt/spacemit-toolchain-linux-glibc-x86_64-v1.2.4/bin/riscv64-unkn
   build/sdcard/Bianbu-LXQt-K3-sdcard-v4.0-ecall-bench.img
 ```
 
-脚本会完成 K3 benchmark 编译、FIT 封装、原镜像解压/复制、OpenSBI 槽
-替换以及替换内容校验。如果输出文件已经存在，脚本会拒绝覆盖。该脚本
+脚本会完成 K3 benchmark 编译、原 DTB 提取、两个 FIT 封装、原镜像
+解压/复制、裸区域替换以及替换内容校验。如果输出文件已经存在，脚本会拒绝覆盖。该脚本
 针对上述 Bianbu v4.0 镜像布局编写，并会检查 `0x700000` 和 `0x800000`
 处是否存在预期的 FIT 头，避免误改布局不兼容的镜像。
 

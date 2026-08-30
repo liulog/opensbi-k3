@@ -23,6 +23,9 @@
 #include <sbi/sbi_sse.h>
 #include <sbi/sbi_timer.h>
 #include <sbi/sbi_trap.h>
+#ifdef CONFIG_SBI_ECALL_BENCH
+#include <sbi/sbi_ecall_bench.h>
+#endif
 
 static void sbi_trap_error_one(const struct sbi_trap_context *tcntx,
 			       const char *prefix, u32 hartid, u32 depth)
@@ -337,6 +340,21 @@ struct sbi_trap_context *sbi_trap_handler(struct sbi_trap_context *tcntx)
 		break;
 	case CAUSE_SUPERVISOR_ECALL:
 	case CAUSE_MACHINE_ECALL:
+#ifdef CONFIG_SBI_ECALL_BENCH
+		/*
+		 * Same save/restore and mcause dispatch as the real
+		 * handler.  Once a7 is the private bench EID, skip
+		 * extension lookup and return through the original
+		 * restore path.
+		 */
+		if (regs->a7 == SBI_EXT_ECALL_BENCH) {
+			regs->mepc += 4;
+			regs->a0 = 0;
+			regs->a1 = 0;
+			rc = 0;
+			break;
+		}
+#endif
 		rc  = sbi_ecall_handler(tcntx);
 		msg = "ecall handler failed";
 		break;

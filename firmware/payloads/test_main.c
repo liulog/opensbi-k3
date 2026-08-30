@@ -60,11 +60,15 @@ void test_main(unsigned long a0, unsigned long a1)
 	const unsigned long batches = SBI_ECALL_BENCH_BATCHES;
 	const unsigned long batch_size = SBI_ECALL_BENCH_BATCH_SIZE;
 	const unsigned long iterations = batches * batch_size;
-	unsigned long total, average, remainder;
-	char output[256];
-	char *p = output;
+	unsigned long total_min, total_early, total_sbi, total_unsupp;
+	struct sbiret spec, unsupp;
+	char output[320];
+	char *p;
 
 	extern unsigned long ecall_bench_run(unsigned long batches);
+	extern unsigned long ecall_bench_run_early(unsigned long batches);
+	extern unsigned long ecall_bench_run_sbi_spec(unsigned long batches);
+	extern unsigned long ecall_bench_run_sbi_unsupp(unsigned long batches);
 	extern void ecall_bench_stop(void);
 
 	static const char digits[] = "0123456789";
@@ -74,11 +78,18 @@ void test_main(unsigned long a0, unsigned long a1)
 	(void)a0;
 	(void)a1;
 
-	total = ecall_bench_run(batches);
+	total_min = ecall_bench_run(batches);
 	ecall_bench_stop();
 
-	average = total / iterations;
-	remainder = total % iterations;
+	total_early = ecall_bench_run_early(batches);
+
+	spec = sbi_ecall(SBI_EXT_BASE, SBI_EXT_BASE_GET_SPEC_VERSION,
+			 0, 0, 0, 0, 0, 0);
+	total_sbi = ecall_bench_run_sbi_spec(batches);
+
+	unsupp = sbi_ecall(SBI_EXT_ECALL_BENCH_UNSUPPORTED, 0,
+			   0, 0, 0, 0, 0, 0);
+	total_unsupp = ecall_bench_run_sbi_unsupp(batches);
 
 #define APPEND_LITERAL(str) do { \
 		const char *__s = (str); \
@@ -95,8 +106,24 @@ void test_main(unsigned long a0, unsigned long a1)
 		while (i) \
 			*p++ = tmp[--i]; \
 	} while (0)
+#define APPEND_CYCLES_PER(total) do { \
+		unsigned long __avg = (total) / iterations; \
+		unsigned long __rem = (total) % iterations; \
+		APPEND_ULONG(__avg); \
+		APPEND_LITERAL("."); \
+		__rem = (__rem * 1000) / iterations; \
+		*p++ = digits[(__rem / 100) % 10]; \
+		*p++ = digits[(__rem / 10) % 10]; \
+		*p++ = digits[__rem % 10]; \
+	} while (0)
+#define FLUSH_REPORT() do { \
+		*p = '\0'; \
+		sbi_ecall_console_puts(output); \
+	} while (0)
 
+	p = output;
 	APPEND_LITERAL("\nS-mode ECALL latency benchmark\n");
+	APPEND_LITERAL("path            : minimal mtvec\n");
 	APPEND_LITERAL("batches         : ");
 	APPEND_ULONG(batches);
 	APPEND_LITERAL("\necalls/batch    : ");
@@ -104,21 +131,78 @@ void test_main(unsigned long a0, unsigned long a1)
 	APPEND_LITERAL("\niterations      : ");
 	APPEND_ULONG(iterations);
 	APPEND_LITERAL("\nmeasured cycles : ");
-	APPEND_ULONG(total);
+	APPEND_ULONG(total_min);
 	APPEND_LITERAL("\ncycles/ecall    : ");
-	APPEND_ULONG(average);
-	APPEND_LITERAL(".");
-	remainder = (remainder * 1000) / iterations;
-	*p++ = digits[(remainder / 100) % 10];
-	*p++ = digits[(remainder / 10) % 10];
-	*p++ = digits[remainder % 10];
+	APPEND_CYCLES_PER(total_min);
 	APPEND_LITERAL("\n");
-	*p = '\0';
+	FLUSH_REPORT();
 
+	p = output;
+	APPEND_LITERAL("\npath            : original handler early a7\n");
+	APPEND_LITERAL("batches         : ");
+	APPEND_ULONG(batches);
+	APPEND_LITERAL("\necalls/batch    : ");
+	APPEND_ULONG(batch_size);
+	APPEND_LITERAL("\niterations      : ");
+	APPEND_ULONG(iterations);
+	APPEND_LITERAL("\nmeasured cycles : ");
+	APPEND_ULONG(total_early);
+	APPEND_LITERAL("\ncycles/ecall    : ");
+	APPEND_CYCLES_PER(total_early);
+	APPEND_LITERAL("\n");
+	FLUSH_REPORT();
+
+	p = output;
+	APPEND_LITERAL("\npath            : full SBI get_spec_version\n");
+	APPEND_LITERAL("sbi spec        : ");
+	if (spec.error) {
+		APPEND_LITERAL("error ");
+		APPEND_ULONG((unsigned long)spec.error);
+	} else {
+		APPEND_ULONG((spec.value >> SBI_SPEC_VERSION_MAJOR_OFFSET) &
+			     SBI_SPEC_VERSION_MAJOR_MASK);
+		APPEND_LITERAL(".");
+		APPEND_ULONG(spec.value & SBI_SPEC_VERSION_MINOR_MASK);
+	}
+	APPEND_LITERAL("\nbatches         : ");
+	APPEND_ULONG(batches);
+	APPEND_LITERAL("\necalls/batch    : ");
+	APPEND_ULONG(batch_size);
+	APPEND_LITERAL("\niterations      : ");
+	APPEND_ULONG(iterations);
+	APPEND_LITERAL("\nmeasured cycles : ");
+	APPEND_ULONG(total_sbi);
+	APPEND_LITERAL("\ncycles/ecall    : ");
+	APPEND_CYCLES_PER(total_sbi);
+	APPEND_LITERAL("\n");
+	FLUSH_REPORT();
+
+	p = output;
+	APPEND_LITERAL("\npath            : full SBI unsupported ext\n");
+	APPEND_LITERAL("sbi error       : ");
+	if (unsupp.error < 0) {
+		APPEND_LITERAL("-");
+		APPEND_ULONG((unsigned long)(-unsupp.error));
+	} else {
+		APPEND_ULONG((unsigned long)unsupp.error);
+	}
+	APPEND_LITERAL("\nbatches         : ");
+	APPEND_ULONG(batches);
+	APPEND_LITERAL("\necalls/batch    : ");
+	APPEND_ULONG(batch_size);
+	APPEND_LITERAL("\niterations      : ");
+	APPEND_ULONG(iterations);
+	APPEND_LITERAL("\nmeasured cycles : ");
+	APPEND_ULONG(total_unsupp);
+	APPEND_LITERAL("\ncycles/ecall    : ");
+	APPEND_CYCLES_PER(total_unsupp);
+	APPEND_LITERAL("\n");
+	FLUSH_REPORT();
+
+#undef FLUSH_REPORT
+#undef APPEND_CYCLES_PER
 #undef APPEND_ULONG
 #undef APPEND_LITERAL
-
-	sbi_ecall_console_puts(output);
 #else
 	sbi_ecall_console_puts("\nTest payload running\n");
 #endif

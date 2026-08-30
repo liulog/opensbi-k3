@@ -1,0 +1,54 @@
+/dts-v1/;
+
+/ {
+	description = "K3 ECALL benchmark S-mode next stage";
+	#address-cells = <2>;
+	fit,fdt-list = "of-list";
+
+	images {
+		uboot {
+			description = "Minimal S-mode ECALL benchmark";
+			type = "standalone";
+			os = "u-boot";
+			arch = "riscv";
+			compression = "none";
+			load = <0x1 0x02000000>;
+			entry = <0x1 0x02000000>;
+			data = /incbin/("./payloads/test.bin");
+			hash-1 {
+				algo = "crc32";
+			};
+		};
+
+		fdt_1 { description = "k3_fpga.dtb"; type = "flat_dt"; compression = "none"; data = /incbin/("./fdt_1.dtb"); hash-1 { algo = "crc32"; }; };
+		fdt_2 { description = "k3_evb.dtb"; type = "flat_dt"; compression = "none"; data = /incbin/("./fdt_2.dtb"); hash-1 { algo = "crc32"; }; };
+		fdt_3 { description = "k3_deb1.dtb"; type = "flat_dt"; compression = "none"; data = /incbin/("./fdt_3.dtb"); hash-1 { algo = "crc32"; }; };
+		fdt_4 { description = "k3_com260.dtb"; type = "flat_dt"; compression = "none"; data = /incbin/("./fdt_4.dtb"); hash-1 { algo = "crc32"; }; };
+		fdt_5 { description = "k3_dc_board.dtb"; type = "flat_dt"; compression = "none"; data = /incbin/("./fdt_5.dtb"); hash-1 { algo = "crc32"; }; };
+		fdt_6 { description = "k3_com260_kit_v02.dtb"; type = "flat_dt"; compression = "none"; data = /incbin/("./fdt_6.dtb"); hash-1 { algo = "crc32"; }; };
+		fdt_7 { description = "k3_gemini_c0.dtb"; type = "flat_dt"; compression = "none"; data = /incbin/("./fdt_7.dtb"); hash-1 { algo = "crc32"; }; };
+		fdt_8 { description = "k3_gemini_c1.dtb"; type = "flat_dt"; compression = "none"; data = /incbin/("./fdt_8.dtb"); hash-1 { algo = "crc32"; }; };
+		fdt_9 { description = "k3_evb2-1.dtb"; type = "flat_dt"; compression = "none"; data = /incbin/("./fdt_9.dtb"); hash-1 { algo = "crc32"; }; };
+		fdt_10 { description = "k3_evb2-2.dtb"; type = "flat_dt"; compression = "none"; data = /incbin/("./fdt_10.dtb"); hash-1 { algo = "crc32"; }; };
+		fdt_11 { description = "k3-pico-itx.dtb"; type = "flat_dt"; compression = "none"; data = /incbin/("./fdt_11.dtb"); hash-1 { algo = "crc32"; }; };
+		fdt_12 { description = "k3_BS01DCMA.dtb"; type = "flat_dt"; compression = "none"; data = /incbin/("./fdt_12.dtb"); hash-1 { algo = "crc32"; }; };
+		fdt_13 { description = "k3_com260_ifx.dtb"; type = "flat_dt"; compression = "none"; data = /incbin/("./fdt_13.dtb"); hash-1 { algo = "crc32"; }; };
+	};
+
+	configurations {
+		default = "conf_3";
+		conf_1 { description = "k3_fpga"; loadables = "uboot"; fdt = "fdt_1"; };
+		conf_2 { description = "k3_evb"; loadables = "uboot"; fdt = "fdt_2"; };
+		conf_3 { description = "k3_deb1"; loadables = "uboot"; fdt = "fdt_3"; };
+		conf_4 { description = "k3_com260"; loadables = "uboot"; fdt = "fdt_4"; };
+		conf_5 { description = "k3_dc_board"; loadables = "uboot"; fdt = "fdt_5"; };
+		conf_6 { description = "k3_com260_kit_v02"; loadables = "uboot"; fdt = "fdt_6"; };
+		conf_7 { description = "k3_gemini_c0"; loadables = "uboot"; fdt = "fdt_7"; };
+		conf_8 { description = "k3_gemini_c1"; loadables = "uboot"; fdt = "fdt_8"; };
+		conf_9 { description = "k3_evb2-1"; loadables = "uboot"; fdt = "fdt_9"; };
+		conf_10 { description = "k3_evb2-2"; loadables = "uboot"; fdt = "fdt_10"; };
+		conf_11 { description = "k3-pico-itx"; loadables = "uboot"; fdt = "fdt_11"; };
+		conf_12 { description = "k3_BS01DCMA"; loadables = "uboot"; fdt = "fdt_12"; };
+		conf_13 { description = "k3_com260_ifx"; loadables = "uboot"; fdt = "fdt_13"; };
+	};
+};

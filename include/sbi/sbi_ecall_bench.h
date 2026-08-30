@@ -8,6 +8,9 @@
 #define SBI_EXT_ECALL_BENCH_NOP		0
 #define SBI_EXT_ECALL_BENCH_STOP	1
 
+/* Unused EID: forces sbi_ecall_find_extension() to miss and return ENOTSUPP. */
+#define SBI_EXT_ECALL_BENCH_UNSUPPORTED	0x123
+
 /* Keep each measured instruction block branch-free and approximately 4 KiB. */
 #define SBI_ECALL_BENCH_BATCH_SIZE	1024
 #define SBI_ECALL_BENCH_BATCHES		800
