@@ -160,6 +160,64 @@ build/ecall-bench/k3/platform/generic/firmware/fw_payload.bin
 脚本会在调用 `make` 前创建输出目录，因此生成的 Kconfig 路径始终位于
 该目录下，不会意外解析成 `/platform`。
 
+## 制作可直接烧录的 K3 SD 卡镜像
+
+`scripts/ecall-bench-sdcard.sh` 可以基于官方 Bianbu K3 SD 卡镜像生成
+一份独立的 ECALL 测试镜像。脚本不会覆盖输入镜像，也不会修改其中的
+ESP、`bootfs`、`rootfs` 或 U-Boot，只替换 SD 卡裸区域中的 OpenSBI
+FIT 槽。
+
+当前确认的 `Bianbu-LXQt-K3-sdcard-v4.0-20260430170328.img` 布局为：
+
+| 起始位置 | 大小 | 内容 | 测试镜像处理方式 |
+| --- | ---: | --- | --- |
+| `0x700000` | 1 MiB | OpenSBI FIT | 替换为 ECALL 测试 FIT |
+| `0x800000` | 至分区起点 | U-Boot FIT 等早期启动内容 | 保持不变 |
+| 12 MiB | 256 MiB | ESP 分区 | 保持不变 |
+| 268 MiB | 256 MiB | `bootfs` 分区 | 保持不变 |
+| 524 MiB | 8 GiB | `rootfs` 分区 | 保持不变 |
+
+原镜像在 `0x700000` 存放的是加载到 `0x100000000` 的 `fw_dynamic`。
+测试镜像保持相同的 FIT 类型、加载地址和入口地址，但将其替换为包含
+S-mode 测试程序的 `fw_payload`。为了让完整固件放入 1 MiB 槽，SD 卡
+专用构建使用 `FW_PAYLOAD_OFFSET=0x80000`，所以 S-mode payload 的链接
+地址为 `0x100080000`。该偏移只用于 SD 卡封装，不改变普通 QEMU/K3
+构建的 2 MiB payload 偏移。
+
+由于测试 payload 已经内置在 OpenSBI FIT 中，OpenSBI 初始化完成后会
+直接进入基准测试，不再跳转到镜像中原有的 U-Boot 和 Linux。U-Boot、
+内核及根文件系统仍保留在镜像中，只是在本次测试启动流程中不会执行。
+
+从仓库根目录执行：
+
+```sh
+CROSS_COMPILE=/opt/spacemit-toolchain-linux-glibc-x86_64-v1.2.4/bin/riscv64-unknown-linux-gnu- \
+  ./scripts/ecall-bench-sdcard.sh \
+  ../Bianbu-LXQt-K3-sdcard-v4.0-20260430170328.img.gz \
+  build/sdcard/Bianbu-LXQt-K3-sdcard-v4.0-ecall-bench.img
+```
+
+脚本会完成 K3 benchmark 编译、FIT 封装、原镜像解压/复制、OpenSBI 槽
+替换以及替换内容校验。如果输出文件已经存在，脚本会拒绝覆盖。该脚本
+针对上述 Bianbu v4.0 镜像布局编写，并会检查 `0x700000` 和 `0x800000`
+处是否存在预期的 FIT 头，避免误改布局不兼容的镜像。
+
+生成的原始镜像大小为 `9,139,408,896` 字节，因此应使用容量足够的
+SD 卡，通常需要 16 GB 或更大的卡。烧录前务必使用 `lsblk` 再次确认
+设备名；以下命令中的 `/dev/sdX` 必须替换为整张 SD 卡设备，而不是某个
+分区。选错设备会覆盖其他磁盘的数据。
+
+```sh
+lsblk -o NAME,SIZE,MODEL,TRAN,MOUNTPOINTS
+sudo dd \
+  if=build/sdcard/Bianbu-LXQt-K3-sdcard-v4.0-ecall-bench.img \
+  of=/dev/sdX bs=16M conv=fsync status=progress
+```
+
+烧录后从 SD 卡启动 K3，并通过串口查看结果。测试完成后 payload 会停在
+`wfi`，不会继续启动 Linux。如果需要恢复正常系统，重新烧录原始 Bianbu
+镜像即可。
+
 ## 直接使用 make 编译
 
 编译 RV64 QEMU `virt` 镜像：
