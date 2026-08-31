@@ -65,6 +65,9 @@ config SBIUNIT
 config SBI_ECALL_BENCH
 	bool "Enable the temporary S-mode ECALL latency benchmark"
 	default n
+	help
+	  Build the test payload, minimal mtvec path, and a registered empty
+	  experimental SBI extension used by the ECALL latency benchmark.
 
 config SBI_ECALL_SSE
 	bool "SSE extension"

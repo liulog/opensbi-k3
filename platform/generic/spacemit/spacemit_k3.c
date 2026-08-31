@@ -234,18 +234,10 @@ static int spacemit_k3_early_init(bool cold_boot, const void *fdt, const struct 
 			/* devote the cluster */
 			spacemit_devote_pwrdown_cluster(i);
 
-#ifndef CONFIG_SBI_ECALL_BENCH
-		/*
-		 * Wake cluster2 hart8 into boot_entry_dummy(). That path
-		 * issues a global D-cache flush; on the ECALL bench image
-		 * it races with hart0 and can smash platform_ops in .data.
-		 * The benchmark is single-hart and does not need this
-		 * bring-up.
-		 */
+		/* then wakeup core8 which belongs cluster2 */
 		writel(((unsigned long)_start_warm_dummy) & 0xffffffff, (unsigned int *)(C2_RVBADDR_LO_ADDR));
 		writel((((unsigned long)_start_warm_dummy) >> 32) & 0xffffffff, (unsigned int*)(C2_RVBADDR_HI_ADDR));
 		writel((1 << 8), (unsigned int *)PMU_CAP_CORE8_WAKEUP);
-#endif
 
 		/* deassert dmasys reset for cpus reach all tcm range */
 		writel(1, (unsigned int *)DMASYS_RESET);

@@ -199,23 +199,6 @@ static void sbi_boot_print_hart(struct sbi_scratch *scratch, u32 hartid)
 	sbi_hart_delegation_dump(scratch, "Boot HART ", "           ");
 }
 
-#ifdef CONFIG_SBI_ECALL_BENCH
-static bool ecall_bench_in_fw(unsigned long addr)
-{
-	const struct sbi_scratch *s = sbi_scratch_thishart_ptr();
-
-	return addr >= s->fw_start && addr < (s->fw_start + s->fw_size);
-}
-
-static bool ecall_bench_text_fn(unsigned long fn)
-{
-	const struct sbi_scratch *s = sbi_scratch_thishart_ptr();
-
-	return !fn ||
-	       (fn >= s->fw_start && fn < (s->fw_start + s->fw_rw_offset));
-}
-#endif
-
 static unsigned long coldboot_done;
 
 static void wait_for_coldboot(struct sbi_scratch *scratch)
@@ -305,34 +288,6 @@ static void __noreturn init_coldboot(struct sbi_scratch *scratch, u32 hartid)
 
 	sbi_boot_print_banner(scratch);
 
-#ifdef CONFIG_SBI_ECALL_BENCH
-	/*
-	 * The K3 board currently dies here: platform_ops->irqchip_init is
-	 * overwritten with leftover instruction bytes (seen as
-	 * mcause=1 / mepc=0x143c230304). The measurement payload is
-	 * single-hart, masks MIE, and only needs cycle + a private
-	 * mtvec, so skip the remaining interrupt-controller bring-up.
-	 */
-	{
-		unsigned long ops_addr = plat ? plat->platform_ops_addr : 0;
-
-		sbi_printf("ECALL bench: plat=0x%lx ops=0x%lx\n",
-			   (unsigned long)plat, ops_addr);
-		if (ecall_bench_in_fw(ops_addr)) {
-			const struct sbi_platform_operations *ops =
-				(const struct sbi_platform_operations *)ops_addr;
-
-			sbi_printf("ECALL bench: irqchip=0x%lx ipi=0x%lx timer=0x%lx mpxy=0x%lx\n",
-				   (unsigned long)ops->irqchip_init,
-				   (unsigned long)ops->ipi_init,
-				   (unsigned long)ops->timer_init,
-				   (unsigned long)ops->mpxy_init);
-		} else {
-			sbi_printf("ECALL bench: platform_ops is outside firmware\n");
-		}
-		sbi_printf("ECALL bench: skip irqchip/ipi/tlb/timer/mpxy\n");
-	}
-#else
 	rc = sbi_irqchip_init(scratch, true);
 	if (rc) {
 		sbi_printf("%s: irqchip init failed (error %d)\n",
@@ -357,7 +312,6 @@ static void __noreturn init_coldboot(struct sbi_scratch *scratch, u32 hartid)
 		sbi_printf("%s: timer init failed (error %d)\n", __func__, rc);
 		sbi_hart_hang();
 	}
-#endif
 
 	rc = sbi_fwft_init(scratch, true);
 	if (rc) {
@@ -371,29 +325,13 @@ static void __noreturn init_coldboot(struct sbi_scratch *scratch, u32 hartid)
 	 * Note: Finalize domains before HART PMP configuration so
 	 * that we use correct domain for configuring PMP.
 	 */
-#ifdef CONFIG_SBI_ECALL_BENCH
-	if (!ecall_bench_in_fw(plat ? plat->platform_ops_addr : 0) ||
-	    !ecall_bench_text_fn(plat ?
-				 (unsigned long)sbi_platform_ops(plat)->domains_init :
-				 0)) {
-		sbi_printf("ECALL bench: skip domain finalize (bad ops)\n");
-	} else
-#endif
-	{
-		rc = sbi_domain_finalize(scratch, hartid);
-		if (rc) {
-#ifdef CONFIG_SBI_ECALL_BENCH
-			sbi_printf("%s: domain finalize failed (error %d), continue\n",
-				   __func__, rc);
-#else
-			sbi_printf("%s: domain finalize failed (error %d)\n",
-				   __func__, rc);
-			sbi_hart_hang();
-#endif
-		}
+	rc = sbi_domain_finalize(scratch, hartid);
+	if (rc) {
+		sbi_printf("%s: domain finalize failed (error %d)\n",
+			   __func__, rc);
+		sbi_hart_hang();
 	}
 
-#ifndef CONFIG_SBI_ECALL_BENCH
 	/*
 	 * Note: Each supervisor domain will need its own MPXY shared
 	 * memory region.
@@ -404,33 +342,17 @@ static void __noreturn init_coldboot(struct sbi_scratch *scratch, u32 hartid)
 		sbi_printf("%s: mpxy init failed (error %d)\n", __func__, rc);
 		sbi_hart_hang();
 	}
-#endif
 
 	/*
 	 * Note: Platform final initialization should be after finalizing
 	 * domains so that it sees correct domain assignment and PMP
 	 * configuration for FDT fixups.
 	 */
-#ifdef CONFIG_SBI_ECALL_BENCH
-	if (!ecall_bench_in_fw(plat ? plat->platform_ops_addr : 0) ||
-	    !ecall_bench_text_fn(plat ?
-				 (unsigned long)sbi_platform_ops(plat)->final_init :
-				 0)) {
-		sbi_printf("ECALL bench: skip platform final init (bad ops)\n");
-	} else
-#endif
-	{
-		rc = sbi_platform_final_init(plat, true);
-		if (rc) {
-#ifdef CONFIG_SBI_ECALL_BENCH
-			sbi_printf("%s: platform final init failed (error %d), continue\n",
-				   __func__, rc);
-#else
-			sbi_printf("%s: platform final init failed (error %d)\n",
-				   __func__, rc);
-			sbi_hart_hang();
-#endif
-		}
+	rc = sbi_platform_final_init(plat, true);
+	if (rc) {
+		sbi_printf("%s: platform final init failed (error %d)\n",
+			   __func__, rc);
+		sbi_hart_hang();
 	}
 
 	/*

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 
+#include <sbi/riscv_asm.h>
 #include <sbi/riscv_encoding.h>
 #include <sbi/sbi_ecall_bench.h>
 
@@ -16,10 +17,11 @@ ecall_bench_run:
 	j	.Lecall_bench_measure
 
 	.align 3
-	.globl ecall_bench_run_early
-ecall_bench_run_early:
+	.globl ecall_bench_run_extension
+ecall_bench_run_extension:
 	/*
-	 * Original _trap_handler path, early return after mcause and a7.
+	 * Original _trap_handler and standard SBI extension dispatch path.
+	 * The registered benchmark extension handles FID 0 as an empty call.
 	 * Must run after ecall_bench_stop(); otherwise the bench mtvec
 	 * would take the 7-instruction shortcut.
 	 */
@@ -104,6 +106,127 @@ ecall_bench_run_sbi_unsupp:
 4:
 	/* Return accumulated measured cycles (warmup already excluded). */
 	mv	a0, t3
+	ret
+
+	/*
+	 * Linux-like S-mode wrapper path.  Each measured operation prepares all
+	 * eight SBI arguments and calls the out-of-line C wrapper.  The wrapper
+	 * itself executes the ECALL and returns a0/a1 as struct sbiret.
+	 */
+	.align 3
+	.globl ecall_bench_run_sbi_wrapper
+ecall_bench_run_sbi_wrapper:
+	addi	sp, sp, -(6 * __SIZEOF_POINTER__)
+	REG_S	ra, (5 * __SIZEOF_POINTER__)(sp)
+	REG_S	s0, (4 * __SIZEOF_POINTER__)(sp)
+	REG_S	s1, (3 * __SIZEOF_POINTER__)(sp)
+	REG_S	s2, (2 * __SIZEOF_POINTER__)(sp)
+	REG_S	s3, (1 * __SIZEOF_POINTER__)(sp)
+	REG_S	s4, (0 * __SIZEOF_POINTER__)(sp)
+
+	mv	s0, a0
+	addi	s0, s0, 1
+	li	s3, 1
+	li	s4, 0
+
+5:
+	fence	iorw, iorw
+	csrr	s1, CSR_CYCLE
+	fence	iorw, iorw
+
+	/* Match Linux CALL_64: no loop branch occurs inside the timed body. */
+	.rept SBI_ECALL_BENCH_WRAPPER_BATCH_SIZE
+	li	a0, 0
+	li	a1, 0
+	li	a2, 0
+	li	a3, 0
+	li	a4, 0
+	li	a5, 0
+	li	a6, SBI_EXT_BASE_GET_SPEC_VERSION
+	li	a7, SBI_EXT_BASE
+	call	ecall_bench_sbi_wrapper
+	.endr
+
+	fence	iorw, iorw
+	csrr	s2, CSR_CYCLE
+	fence	iorw, iorw
+
+	sub	s2, s2, s1
+	beqz	s3, 6f
+	li	s3, 0
+	j	7f
+6:
+	add	s4, s4, s2
+7:
+	addi	s0, s0, -1
+	bnez	s0, 5b
+
+	mv	a0, s4
+	REG_L	s4, (0 * __SIZEOF_POINTER__)(sp)
+	REG_L	s3, (1 * __SIZEOF_POINTER__)(sp)
+	REG_L	s2, (2 * __SIZEOF_POINTER__)(sp)
+	REG_L	s1, (3 * __SIZEOF_POINTER__)(sp)
+	REG_L	s0, (4 * __SIZEOF_POINTER__)(sp)
+	REG_L	ra, (5 * __SIZEOF_POINTER__)(sp)
+	addi	sp, sp, (6 * __SIZEOF_POINTER__)
+	ret
+
+	/* Same wrapper overhead, but exercise the extension lookup miss path. */
+	.align 3
+	.globl ecall_bench_run_sbi_unsupp_wrapper
+ecall_bench_run_sbi_unsupp_wrapper:
+	addi	sp, sp, -(6 * __SIZEOF_POINTER__)
+	REG_S	ra, (5 * __SIZEOF_POINTER__)(sp)
+	REG_S	s0, (4 * __SIZEOF_POINTER__)(sp)
+	REG_S	s1, (3 * __SIZEOF_POINTER__)(sp)
+	REG_S	s2, (2 * __SIZEOF_POINTER__)(sp)
+	REG_S	s3, (1 * __SIZEOF_POINTER__)(sp)
+	REG_S	s4, (0 * __SIZEOF_POINTER__)(sp)
+
+	mv	s0, a0
+	addi	s0, s0, 1
+	li	s3, 1
+	li	s4, 0
+
+8:
+	fence	iorw, iorw
+	csrr	s1, CSR_CYCLE
+	fence	iorw, iorw
+
+	.rept SBI_ECALL_BENCH_WRAPPER_BATCH_SIZE
+	li	a0, 0
+	li	a1, 0
+	li	a2, 0
+	li	a3, 0
+	li	a4, 0
+	li	a5, 0
+	li	a6, 0
+	li	a7, SBI_EXT_ECALL_BENCH_UNSUPPORTED
+	call	ecall_bench_sbi_wrapper
+	.endr
+
+	fence	iorw, iorw
+	csrr	s2, CSR_CYCLE
+	fence	iorw, iorw
+
+	sub	s2, s2, s1
+	beqz	s3, 9f
+	li	s3, 0
+	j	10f
+9:
+	add	s4, s4, s2
+10:
+	addi	s0, s0, -1
+	bnez	s0, 8b
+
+	mv	a0, s4
+	REG_L	s4, (0 * __SIZEOF_POINTER__)(sp)
+	REG_L	s3, (1 * __SIZEOF_POINTER__)(sp)
+	REG_L	s2, (2 * __SIZEOF_POINTER__)(sp)
+	REG_L	s1, (3 * __SIZEOF_POINTER__)(sp)
+	REG_L	s0, (4 * __SIZEOF_POINTER__)(sp)
+	REG_L	ra, (5 * __SIZEOF_POINTER__)(sp)
+	addi	sp, sp, (6 * __SIZEOF_POINTER__)
 	ret
 
 	.align 3

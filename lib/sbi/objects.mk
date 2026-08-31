@@ -15,6 +15,7 @@ libsbi-objs-y += riscv_locks.o
 libsbi-objs-y += sbi_ecall.o
 libsbi-objs-y += sbi_ecall_exts.carray.o
 libsbi-objs-$(CONFIG_SBI_ECALL_BENCH) += sbi_ecall_bench.o
+libsbi-objs-$(CONFIG_SBI_ECALL_BENCH) += sbi_ecall_bench_ext.o
 
 # The order of below extensions is performance optimized
 carray-sbi_ecall_exts-$(CONFIG_SBI_ECALL_TIME) += ecall_time
@@ -64,6 +65,9 @@ libsbi-objs-$(CONFIG_SBI_ECALL_SSE) += sbi_ecall_sse.o
 
 carray-sbi_ecall_exts-$(CONFIG_SBI_ECALL_MPXY) += ecall_mpxy
 libsbi-objs-$(CONFIG_SBI_ECALL_MPXY) += sbi_ecall_mpxy.o
+
+# Keep the test-only extension last so existing extension lookup order is intact.
+carray-sbi_ecall_exts-$(CONFIG_SBI_ECALL_BENCH) += ecall_bench
 
 libsbi-objs-y += sbi_bitmap.o
 libsbi-objs-y += sbi_bitops.o
